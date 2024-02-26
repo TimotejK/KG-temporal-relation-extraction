@@ -12,7 +12,7 @@ from spacy.lang.en import English
 
 print(os.getcwd())
 
-from datasets.common import expand_sentence
+from dataset_loaders.common import expand_sentence
 from dataLoaders.i2b2dataLoader import load_absolute_data, load_data
 from spacy.tokenizer import Tokenizer
 

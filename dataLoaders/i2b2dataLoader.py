@@ -9,7 +9,7 @@ import torch
 # from torch_geometric.data import Data
 from transformers import BertTokenizerFast, BertModel
 
-from common import expand_sentence
+from dataset_loaders.common import expand_sentence
 
 def get_event_time(event_id):
     tsv_files = {}
