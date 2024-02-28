@@ -24,3 +24,4 @@ pip install https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.3/e
 pip install evaluate
 pip install transformers[torch]
 pip install wandb
+pip install gensim

@@ -48,6 +48,9 @@ def generate_primekg_graph_for_event(event, **kwargs):
     graph = get_subgraph(umls_id, event)
     return graph
 
+def generate_local_graph_for_event(event, **kwargs):
+
+    pass
 
 def create_knowledge_graph_dataset(dataframe, graph_generation_function):
     def convert_row_to_graph(row, graph_generation_function):

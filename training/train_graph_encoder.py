@@ -112,3 +112,6 @@ def hyper_parameter_search():
         compute_objective=compute_objective,
     )
     return best_trial
+
+if __name__ == '__main__':
+    hyper_parameter_search()

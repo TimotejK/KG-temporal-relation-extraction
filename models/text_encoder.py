@@ -5,8 +5,8 @@ from transformers import AutoModel, AutoTokenizer
 class EntityBERTtextEncoder(nn.Module):
     def __init__(self, number_of_relations=3, dropout=0.2, deeper_network=False, pooling_strategy='cls'):
         super(EntityBERTtextEncoder, self).__init__()
-        self.EntityBert = AutoModel.from_pretrained("./pretrained models/PubmedBERTbase-MimicBig-EntityBERT")
-        self.tokenizer = AutoTokenizer.from_pretrained("./pretrained models/PubmedBERTbase-MimicBig-EntityBERT")
+        self.EntityBert = AutoModel.from_pretrained("./pretrained pretrained_models/PubmedBERTbase-MimicBig-EntityBERT")
+        self.tokenizer = AutoTokenizer.from_pretrained("./pretrained pretrained_models/PubmedBERTbase-MimicBig-EntityBERT")
         self.pooling_strategy = pooling_strategy
         self.criterion = nn.CrossEntropyLoss()
         for param in self.EntityBert.parameters():
