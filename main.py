@@ -1,11 +1,12 @@
-import dataset_loaders.knowledge_graph_dataset
-from dataLoaders import combining_data
+import torch
+
+from training.train_graph_encoder import hyper_parameter_search
+
+
+def run_graph_encoder_optimization():
+    best_trial = hyper_parameter_search()
+    torch.save(best_trial, "best_trial.pt")
+    pass
 
 if __name__ == '__main__':
-    # ollama = Ollama(base_url='http://localhost:11434', model="openchat:7b")
-    # print(ollama.invoke("Who are you?"))
-    i2b2df = combining_data.read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
-    dataset_loaders.knowledge_graph_dataset.get_llm_responses_only(i2b2df)
-    # datasets.knowledge_graph_dataset.create_knowledge_graph_dataset(i2b2df)
-    pass
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+    run_graph_encoder_optimization()

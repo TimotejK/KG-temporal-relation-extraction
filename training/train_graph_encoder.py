@@ -85,7 +85,9 @@ def hyper_parameter_search():
         per_device_train_batch_size=64,
         per_device_eval_batch_size=64,
         auto_find_batch_size=True,
-        num_train_epochs=5,
+        learning_rate=1e-2,
+        weight_decay=1e-4,
+        num_train_epochs=50,
         gradient_accumulation_steps=1,
         evaluation_strategy="epoch",
         logging_strategy="epoch",
@@ -106,10 +108,7 @@ def hyper_parameter_search():
         direction="maximize",
         backend="wandb",
         hp_space=wandb_hp_space,
-        n_trials=20,
+        n_trials=100,
         compute_objective=compute_objective,
     )
     return best_trial
-
-if __name__ == '__main__':
-    hyper_parameter_search()
