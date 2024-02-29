@@ -37,6 +37,7 @@ class GraphEncoder(nn.Module):
         self.hidden_dim = output_size
 
         self.criterion = nn.CrossEntropyLoss()
+        self.softmax = nn.Softmax(dim=1)
 
         self.convs = nn.ModuleList()
         self.convs.append(self.build_conv_model(self.node_size, self.edge_size, self.hidden_dim))
@@ -78,6 +79,6 @@ class GraphEncoder(nn.Module):
             return x
 
         x = self.post_mp(x)
-
+        x = self.softmax(x)
         loss = self.criterion(x, labels)
         return {"loss": loss, "predictions": x}
