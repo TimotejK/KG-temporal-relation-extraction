@@ -103,7 +103,7 @@ def hyper_parameter_search():
         eval_dataset=dataset_val,
         compute_metrics=compute_metrics,
         model_init=model_init,
-        data_collator=collate_function
+        data_collator=collate_function,
     )
 
     best_trial = trainer.hyperparameter_search(
@@ -116,4 +116,4 @@ def hyper_parameter_search():
     return best_trial
 
 if __name__ == '__main__':
-    hyper_parameter_search()
+    train()
