@@ -73,10 +73,11 @@ def hyper_parameter_search():
     def wandb_hp_space(trial):
         return {
             "method": "random",
-            "metric": {"name": "objective", "goal": "maximize"},
+            "metric": {"name": "accuracy", "goal": "maximize"},
             "parameters": {
                 "learning_rate": {"distribution": "uniform", "min": 1e-6, "max": 1e-1},
                 "weight_decay": {"distribution": "uniform", "min": 1e-6, "max": 1e-1},
+                "optimizer": {"values": ["sgd", "adam", "adamw"]}
             },
         }
 
@@ -91,6 +92,7 @@ def hyper_parameter_search():
         gradient_accumulation_steps=1,
         evaluation_strategy="epoch",
         logging_strategy="epoch",
+        save_steps=5000,
         push_to_hub=False
     )
 
@@ -101,7 +103,7 @@ def hyper_parameter_search():
         eval_dataset=dataset_val,
         compute_metrics=compute_metrics,
         model_init=model_init,
-        data_collator=collate_function,
+        data_collator=collate_function
     )
 
     best_trial = trainer.hyperparameter_search(
@@ -109,7 +111,7 @@ def hyper_parameter_search():
         backend="wandb",
         hp_space=wandb_hp_space,
         n_trials=100,
-        compute_objective=compute_objective,
+        # compute_objective=compute_objective,
     )
     return best_trial
 
