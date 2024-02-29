@@ -27,6 +27,10 @@ labels = {'BEFORE': 0,
           'INITIATES': 9,
           'REINITIATES': 10,
           }
+
+nlp = None
+glove_vectors = None
+
 def link_entity_to_umls(entity):
     global nlp
     if nlp is None:
@@ -380,6 +384,14 @@ class KnowledgeGraphDataset(torch.utils.data.Dataset):
         item = {'graph': self.graphs[idx]}
         item['labels'] = torch.tensor(self.graphs[idx].y)
         return item
+
+def prepare_local_graph_dataset(full_text_df, configuration):
+    test_df = combining_data.add_inverse_relations(full_text_df)
+    test_df = combining_data.add_transitive_relations(test_df)
+    test_df = combining_data.window_for_entity_bert(test_df, window_size=60, normalize_event_order=True)
+    test_df = test_df.drop_duplicates().reset_index()
+    test_dataset = KnowledgeGraphDataset([], test_df, configuration=configuration)
+    return test_dataset
 def construct_graph_from_text_only(full_text_df, configuration, dataset_type=""):
     batch_size = 64
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -452,5 +464,5 @@ def construct_graph_from_text_only(full_text_df, configuration, dataset_type="")
 if __name__ == '__main__':
     configuration = Configuration()
     df = read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
-    graph = construct_graph_from_text_only(df, configuration)
+    graph = prepare_local_graph_dataset(df, configuration)
     print(graph)
