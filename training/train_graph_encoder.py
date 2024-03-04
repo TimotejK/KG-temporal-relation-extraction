@@ -14,8 +14,8 @@ from models.knowledge_graph_encoder import GraphEncoder
 def prepare_dataset():
     df = read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
     df_train, df_val, df_test = split_data(df, oversample=True, label_name='class', train_size=0.7, val_size=0.2, split_by_documents=True)
-    dataset_train = create_knowledge_graph_dataset(df_train, lambda event: generate_llm_graph_for_event(event, cache_only=True))
-    dataset_val = create_knowledge_graph_dataset(df_val, lambda event: generate_llm_graph_for_event(event, cache_only=True))
+    dataset_train = create_knowledge_graph_dataset(df_train, generate_llm_graph_for_event, cache_only=True)
+    dataset_val = create_knowledge_graph_dataset(df_val, generate_llm_graph_for_event, cache_only=True)
     dataset_train.pregenerate_and_filter()
     dataset_val.pregenerate_and_filter()
     return dataset_train, dataset_val
@@ -114,6 +114,9 @@ def hyper_parameter_search():
         # compute_objective=compute_objective,
     )
     return best_trial
+
+def test_model():
+    pass
 
 if __name__ == '__main__':
     train()

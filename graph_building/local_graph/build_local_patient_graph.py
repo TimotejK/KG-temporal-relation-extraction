@@ -2,11 +2,13 @@ import datetime
 import random
 
 import gensim
+import gensim.downloader
 import numpy as np
 import spacy
 import torch
 import torch_geometric
 from torch_geometric.data import Data
+from scispacy.linking import EntityLinker
 
 from custom_datasets.common import compute_transitive_relation, custom_map, Configuration
 from dataLoaders import combining_data
@@ -461,8 +463,26 @@ def construct_graph_from_text_only(full_text_df, configuration, dataset_type="")
     in_memory_graph = add_inverse_relations(in_memory_graph)
     return in_memory_graph
 
+def precompute_local_knowledge_graph():
+    configuration = Configuration()
+    configuration.add_inverse_relations_to_graph = True
+    configuration.remove_target_relation = False
+    configuration.use_realistic_graph = True
+    df = read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
+    df = df[:54]
+    in_memory_kg = construct_graph_from_text_only(df, configuration, dataset_type="train")
+    torch.save(in_memory_kg, "computed_kg.pt")
+
 if __name__ == '__main__':
     configuration = Configuration()
+    configuration.add_inverse_relations_to_graph = True
+    configuration.remove_target_relation = False
+    configuration.use_realistic_graph = True
     df = read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
+    df = df[:54]
+    in_memory_kg = construct_graph_from_text_only(df, configuration, dataset_type="train")
+    torch.save(in_memory_kg, "computed_kg.pt")
+    test_dataset = KnowledgeGraphDataset(in_memory_kg, df, configuration=configuration)
+
     graph = prepare_local_graph_dataset(df, configuration)
     print(graph)

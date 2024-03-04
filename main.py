@@ -1,5 +1,6 @@
 import torch
 
+from graph_building.local_graph.build_local_patient_graph import precompute_local_knowledge_graph
 from training.train_graph_encoder import hyper_parameter_search
 
 
@@ -9,4 +10,4 @@ def run_graph_encoder_optimization():
     pass
 
 if __name__ == '__main__':
-    run_graph_encoder_optimization()
+    precompute_local_knowledge_graph()

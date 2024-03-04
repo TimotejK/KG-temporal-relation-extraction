@@ -52,7 +52,26 @@ def generate_local_graph_for_event(event, **kwargs):
 
     pass
 
-def create_knowledge_graph_dataset(dataframe, graph_generation_function):
+def create_knowledge_graph_dataset(dataframe, graph_generation_function, **kwargs):
+    def convert_row_to_graph(row, graph_generation_function, kwargs):
+        event1 = row['event1_text']
+        event2 = row['event2_text']
+        relation = row['class']
+        event1kg = graph_generation_function(event=event1, row=row, **kwargs)
+        event2kg = graph_generation_function(event=event2, row=row, **kwargs)
+        if event1kg is None or event2kg is None:
+            return None
+        graph = combine_graphs(graph1=event1kg, graph2=event2kg, target=relation)
+        graph["text"] = [row["text"]]
+        graph["event1_start"] = [row["event1_start"]]
+        graph["event1_end"] = [row["event1_end"]]
+        graph["event2_start"] = [row["event2_start"]]
+        graph["event2_end"] = [row["event2_end"]]
+        return graph
+
+    return DFDataset(dataframe, lambda row: convert_row_to_graph(row, graph_generation_function, kwargs))
+
+def create_knowledge_graph_dataset_with_local_graphs(dataframe, graph_generation_function):
     def convert_row_to_graph(row, graph_generation_function):
         event1 = row['event1_text']
         event2 = row['event2_text']
