@@ -8,13 +8,12 @@ import spacy
 import torch
 import torch_geometric
 from torch_geometric.data import Data
-from scispacy.linking import EntityLinker
 
 from custom_datasets.common import compute_transitive_relation, custom_map, Configuration
-from dataLoaders import combining_data
+from custom_datasets import combining_data
 import torch.nn.functional as F
 
-from dataLoaders.combining_data import read_i2b2
+from custom_datasets.combining_data import read_i2b2
 
 index_to_label = ['BEFORE', 'AFTER', 'OVERLAP', 'BEGINS-ON', 'CONTAINED-BY', 'CONTAINS', 'ENDS-ON', 'CONTINUES', 'TERMINATES', 'INITIATES', 'REINITIATES']
 labels = {'BEFORE': 0,
@@ -313,14 +312,16 @@ def rule_based_model(graph, event1, event2):
         return 2
 
 def create_graph(iteration):
-    (i, row), graph, configuration = iteration
+    row, graph, configuration = iteration
+    if type(row) is tuple or type(row) is list:
+        row = row[1]
     document_id = row["document_id"]
     event1 = link_entity_to_umls(row["event1_text"])
     event2 = link_entity_to_umls(row["event2_text"])
     if configuration.no_document_filtering:
         active_graph = graph
     else:
-        active_graph = filter_knowledge_graph_document(graph, row["document_id"])
+        active_graph = filter_knowledge_graph_document(graph, document_id)
     if configuration.add_inverse_relations_to_graph:
         active_graph = add_inverse_relations(active_graph)
     if configuration.add_transitive_relations_to_graph:
@@ -394,6 +395,7 @@ def prepare_local_graph_dataset(full_text_df, configuration):
     test_df = test_df.drop_duplicates().reset_index()
     test_dataset = KnowledgeGraphDataset([], test_df, configuration=configuration)
     return test_dataset
+
 def construct_graph_from_text_only(full_text_df, configuration, dataset_type=""):
     batch_size = 64
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -404,7 +406,7 @@ def construct_graph_from_text_only(full_text_df, configuration, dataset_type="")
     test_dataset = KnowledgeGraphDataset([], test_df, configuration=configuration)
     dataLoader_test = torch_geometric.loader.DataLoader(test_dataset, batch_size=batch_size)
 
-    text_model = torch.load("graph_building/local_graph_pretrained_models/Transitive_relation_extraction.pt", map_location=torch.device(device))
+    text_model = torch.load("graph_building/local_graph/pretrained_models/Transitive_relation_extraction.pt", map_location=torch.device(device))
     # text_model = torch.load("checkpoints/EntityBert_relation_extraction.pt", map_location=torch.device(device))
     in_memory_graph = []
 
@@ -457,7 +459,7 @@ def construct_graph_from_text_only(full_text_df, configuration, dataset_type="")
     print("Accuracy:", correct / n)
     print("Number of relations:", n / n_all)
     file1 = open("construct graph from text only.log", "a")  # append mode
-    now = datetime.now().strftime("%Y%m%d-%H%M%S")
+    now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     file1.write("Data type=" + dataset_type + ", " + "Date=" + str(now) + ", " + str(configuration) + ", Accuracy=" + str(correct/n) + ", Number of relations=" + str(n / n_all) + " \n")
     file1.close()
     in_memory_graph = add_inverse_relations(in_memory_graph)

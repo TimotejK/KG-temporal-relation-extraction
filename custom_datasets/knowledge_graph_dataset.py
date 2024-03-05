@@ -3,11 +3,11 @@ import os.path
 import torch
 from torch_geometric.data import Data
 
-from dataLoaders import combining_data
-from dataset_loaders.dataframe_dataset import DFDataset
+from custom_datasets.dataframe_dataset import DFDataset
 from graph_building.graph_construction import link_to_umls
 from graph_building.graph_construction import get_subgraph
 from graph_building.llm import OpenChat
+from graph_building.local_graph.build_local_patient_graph import create_graph
 
 relation_types = ["BEFORE", "AFTER", "OVERLAP"]
 def combine_graphs(graph1, graph2, target):
@@ -34,6 +34,7 @@ def generate_llm_graph_for_event(event, **kwargs):
     if event in llm_responses2:
         return llm_responses2[event][0]
     if "cache_only" in kwargs and kwargs["cache_only"]:
+        print("Warning: missing llm response when only using cached responses")
         return None
     event1kg, response = OpenChat.get_kg_from_llm(event, "condition")
     llm_responses2[event] = (event1kg, response)
@@ -41,14 +42,21 @@ def generate_llm_graph_for_event(event, **kwargs):
     return event1kg
 
 def generate_primekg_graph_for_event(event, **kwargs):
-
     umls_id, mondo = link_to_umls(event)
     if umls_id is None:
         umls_id = event
     graph = get_subgraph(umls_id, event)
     return graph
 
-def generate_local_graph_for_event(event, **kwargs):
+def generate_local_graph_for_event(row, local_graph, configuration, **kwargs):
+    graph = create_graph((row, local_graph, configuration))
+    return graph
+
+def generate_combination_graph(**kwards):
+    # TODO tukaj pride do težave, da je včasih text eventa None
+    graph1 = generate_llm_graph_for_event(**kwards)
+    graph2 = generate_local_graph_for_event(**kwards)
+    graph3 = generate_primekg_graph_for_event(**kwards)
 
     pass
 

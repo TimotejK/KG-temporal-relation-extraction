@@ -103,6 +103,13 @@ class Configuration:
             param_strings.append(f"{attr}={repr(value)}")
         return ", ".join(param_strings)
 
+def get_configuration_for_building_local_graph():
+    configuration = Configuration()
+    configuration.add_inverse_relations_to_graph = True
+    configuration.remove_target_relation = False
+    configuration.use_realistic_graph = True
+    return configuration
+
 def expand_sentence(text, start, end):
     start -= 1
     end += 1

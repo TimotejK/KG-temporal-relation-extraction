@@ -9,7 +9,7 @@ import torch
 # from torch_geometric.data import Data
 from transformers import BertTokenizerFast, BertModel
 
-from common import expand_sentence
+from custom_datasets.common import expand_sentence
 
 def get_event_time(event_id):
     tsv_files = {}
@@ -25,9 +25,12 @@ def convert_datetime_to_minutes(event_time):
     return (event_time-datetime(1900, 1, 1, 0, 0, 0, 0)).total_seconds()/60
 
 def add_padding_for_incomplete_rows(row):
+    text = list(row)[0]
+    event1_text = text[list(row)[2]: list(row)[3]]
+    event2_text = text[list(row)[4]: list(row)[5]]
     additional_information = {'event1_start_time': None, 'event2_start_time': None,
                               'event1_end_time': None, 'event2_end_time': None}
-    return list(row) + [None, None, None, None, None, additional_information]
+    return list(row) + [None, None, None, event1_text, event2_text, additional_information]
 def load_absolute_data(full_text=False, use_test_files=False, include_rows_without_absolute=False):
     tsv_files = {}
     for file in listdir('data/i2b2-absolute'):

@@ -1,8 +1,12 @@
 import torch
 
-from graph_building.local_graph.build_local_patient_graph import precompute_local_knowledge_graph
-from training.train_graph_encoder import hyper_parameter_search
+from custom_datasets.combining_data import read_i2b2
+from custom_datasets.knowledge_graph_dataset import get_llm_responses_only
+from training.train_graph_encoder import hyper_parameter_search, train
 
+def prepare_llm_responses():
+    df = read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
+    get_llm_responses_only(df)
 
 def run_graph_encoder_optimization():
     best_trial = hyper_parameter_search()
@@ -10,4 +14,5 @@ def run_graph_encoder_optimization():
     pass
 
 if __name__ == '__main__':
-    precompute_local_knowledge_graph()
+    prepare_llm_responses()
+    # train()

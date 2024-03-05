@@ -1,14 +1,16 @@
+import os.path
+
 import numpy as np
 import evaluate
+import torch
 from torch_geometric.data import DataLoader
 from transformers import Trainer, TrainingArguments
-from transformers.models.graphormer.collating_graphormer import preprocess_item, GraphormerDataCollator
 
-from custom_datasets.common import split_data
-from dataLoaders.combining_data import read_i2b2
-from custom_datasets.knowledge_graph_dataset import generate_primekg_graph_for_event, create_knowledge_graph_dataset, \
-    generate_llm_graph_for_event
-from models.bimodal import MultiModalPrediction
+from custom_datasets.common import split_data, get_configuration_for_building_local_graph
+from custom_datasets.combining_data import read_i2b2
+from custom_datasets.knowledge_graph_dataset import create_knowledge_graph_dataset, \
+    generate_llm_graph_for_event, generate_combination_graph
+from graph_building.local_graph.build_local_patient_graph import construct_graph_from_text_only
 from models.knowledge_graph_encoder import GraphEncoder
 
 def prepare_dataset():
@@ -16,6 +18,27 @@ def prepare_dataset():
     df_train, df_val, df_test = split_data(df, oversample=True, label_name='class', train_size=0.7, val_size=0.2, split_by_documents=True)
     dataset_train = create_knowledge_graph_dataset(df_train, generate_llm_graph_for_event, cache_only=True)
     dataset_val = create_knowledge_graph_dataset(df_val, generate_llm_graph_for_event, cache_only=True)
+    dataset_train.pregenerate_and_filter()
+    dataset_val.pregenerate_and_filter()
+    return dataset_train, dataset_val
+
+def prepare_dataset_local_graph():
+    df = read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
+    df_train, df_val, df_test = split_data(df, oversample=True, label_name='class', train_size=0.7, val_size=0.2, split_by_documents=True)
+    configuration = get_configuration_for_building_local_graph()
+
+    if os.path.isfile("computed_kg.pt"):
+        full_graph = torch.load("computed_kg.pt")
+        train_document_ids = set(df_train["document_id"])
+        val_document_ids = set(df_val["document_id"])
+        patient_graphs_train = [x for x in full_graph if x[4] in train_document_ids]
+        patient_graphs_val = [x for x in full_graph if x[4] in val_document_ids]
+    else:
+        patient_graphs_train = construct_graph_from_text_only(df_train, configuration, dataset_type="train")
+        patient_graphs_val = construct_graph_from_text_only(df_val, configuration, dataset_type="val")
+
+    dataset_train = create_knowledge_graph_dataset(df_train, generate_combination_graph, configuration=configuration, local_graph=patient_graphs_train, cache_only=True)
+    dataset_val = create_knowledge_graph_dataset(df_val, generate_combination_graph, configuration=configuration, local_graph=patient_graphs_val, cache_only=True)
     dataset_train.pregenerate_and_filter()
     dataset_val.pregenerate_and_filter()
     return dataset_train, dataset_val
@@ -35,7 +58,7 @@ def compute_objective(eval_pred):
     return eval_pred["eval_accuracy"]
 
 def train():
-    dataset_train, dataset_val = prepare_dataset()
+    dataset_train, dataset_val = prepare_dataset_local_graph()
 
     model = GraphEncoder(node_size=768, edge_size=768, number_of_relations=3, dropout=0.2)
     # model = MultiModalPrediction(number_of_relations=3, combine_embeddings=True)

@@ -1,19 +1,16 @@
 import csv
 import os
-import urllib
-import uuid
 
 import pandas
 import pandas as pd
 from conllu import parse
 
-from rdflib import Graph, URIRef, BNode, Literal, Namespace, RDF, RDFS
 from spacy.lang.en import English
 
 print(os.getcwd())
 
-from dataset_loaders.common import expand_sentence
-from dataLoaders.i2b2dataLoader import load_absolute_data, load_data
+from custom_datasets.common import expand_sentence
+from custom_datasets.i2b2dataLoader import load_absolute_data
 from spacy.tokenizer import Tokenizer
 
 
