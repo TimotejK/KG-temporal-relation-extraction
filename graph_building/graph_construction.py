@@ -83,6 +83,8 @@ def get_node_details(mondo, entity_name):
 
 
 def get_node_embedding(concept_description):
+    if type(concept_description) == str:
+        return node_embeddings.sentence_embedding(concept_description)
     definitions = concept_description['definitions']
     name = concept_description['name']
     combined_description = str(name)
