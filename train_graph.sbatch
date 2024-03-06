@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=kg-llm
+#SBATCH --job-name=train-graph
 #SBATCH --time=3-00:20:00
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
