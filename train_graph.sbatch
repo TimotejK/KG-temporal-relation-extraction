@@ -16,4 +16,4 @@ srun \
   -A lpt -p frida \
   --container-image /shared/home/timotej.knez/containers/pytorch.sqfs \
   --container-mounts "$PWD":/workspace \
-  python main.py
+  python main.py --method train_graph
