@@ -1,4 +1,7 @@
+import argparse
+
 import torch
+import sys
 
 from custom_datasets.combining_data import read_i2b2
 from custom_datasets.knowledge_graph_dataset import get_llm_responses_only
@@ -14,5 +17,10 @@ def run_graph_encoder_optimization():
     pass
 
 if __name__ == '__main__':
-    prepare_llm_responses()
-    # train()
+    parser = argparse.ArgumentParser(description="sample argument parser")
+    parser.add_argument("--method", default="prepare_llm_responses")
+    args = parser.parse_args()
+    if args.method == "prepare_llm_responses":
+        prepare_llm_responses()
+    elif args.method == "train_graph":
+        train()

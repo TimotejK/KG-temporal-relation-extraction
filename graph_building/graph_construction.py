@@ -132,7 +132,7 @@ def get_subgraph(entity, entity_name):
         edge_index[0].append(concept_index.index(r[1]))
         edge_index[1].append(concept_index.index(r[2]))
 
-    data = Data(x=torch.cat(x, dim=0), edge_index=torch.Tensor(edge_index), edge_attr=torch.cat(edge_features, dim=0))
+    data = Data(x=torch.cat(x, dim=0), edge_index=torch.Tensor(edge_index), edge_attr=torch.cat(edge_features, dim=0), term_index=0)
     return data
 
 

@@ -1,8 +1,8 @@
 import os.path
 
 import torch
+import torch.nn.functional as F
 from torch_geometric.data import Data
-
 from custom_datasets.dataframe_dataset import DFDataset
 from graph_building.graph_construction import link_to_umls
 from graph_building.graph_construction import get_subgraph
@@ -41,6 +41,18 @@ def generate_llm_graph_for_event(event, **kwargs):
     torch.save(llm_responses2, "llm_responses2.pt")
     return event1kg
 
+def generate_relation_graph_llm(row, **kwargs):
+    event1 = row["event1_text"]
+    event2 = row["event2_text"]
+    relation = row["class"]
+
+    graph1 = generate_llm_graph_for_event(event=event1, **kwargs)
+    graph2 = generate_llm_graph_for_event(event=event2, **kwargs)
+    if graph1 is None or graph2 is None:
+        return None
+    graph = combine_graphs(graph1=graph1, graph2=graph2, target=relation)
+    return graph
+
 def generate_primekg_graph_for_event(event, **kwargs):
     umls_id, mondo = link_to_umls(event)
     if umls_id is None:
@@ -48,33 +60,66 @@ def generate_primekg_graph_for_event(event, **kwargs):
     graph = get_subgraph(umls_id, event)
     return graph
 
+def generate_relation_graph_primekg(row, **kwargs):
+    event1 = row["event1_text"]
+    event2 = row["event2_text"]
+    relation = row["class"]
+
+    graph1 = generate_primekg_graph_for_event(event=event1, **kwargs)
+    graph2 = generate_primekg_graph_for_event(event=event2, **kwargs)
+    if graph1 is None or graph2 is None:
+        return None
+    graph = combine_graphs(graph1=graph1, graph2=graph2, target=relation)
+    return graph
+
 def generate_local_graph_for_event(row, local_graph, configuration, **kwargs):
     graph = create_graph((row, local_graph, configuration))
     return graph
 
-def generate_combination_graph(**kwards):
-    # TODO tukaj pride do težave, da je včasih text eventa None
-    graph1 = generate_llm_graph_for_event(**kwards)
-    graph2 = generate_local_graph_for_event(**kwards)
-    graph3 = generate_primekg_graph_for_event(**kwards)
+def combine_all_relation_graphs(llm_graph, local_graph, primekg_graph, row, **kwargs):
+    global relation_types
+    target = row["class"]
 
-    pass
+    # pad to size
+    entity_embedding_size = max(llm_graph.x.size()[1], local_graph.x.size()[1], primekg_graph.x.size()[1])
+    edge_embedding_size = max(llm_graph.edge_attr.size()[1], local_graph.edge_attr.size()[1], primekg_graph.edge_attr.size()[1])
+    llm_graph.x = F.pad(llm_graph.x, (0, entity_embedding_size - llm_graph.x.size()[1]), "constant", 0)
+    llm_graph.edge_attr = F.pad(llm_graph.edge_attr, (0, edge_embedding_size - llm_graph.edge_attr.size()[1]), "constant", 0)
+    local_graph.x = F.pad(local_graph.x, (0, entity_embedding_size - local_graph.x.size()[1]), "constant", 0)
+    local_graph.edge_attr = F.pad(local_graph.edge_attr, (0, edge_embedding_size - local_graph.edge_attr.size()[1]), "constant", 0)
+    primekg_graph.x = F.pad(primekg_graph.x, (0, entity_embedding_size - primekg_graph.x.size()[1]), "constant", 0)
+    primekg_graph.edge_attr = F.pad(primekg_graph.edge_attr, (0, edge_embedding_size - primekg_graph.edge_attr.size()[1]), "constant", 0)
+
+    x = torch.cat((llm_graph.x, local_graph.x, primekg_graph.x), 0)
+    llm_num_nodes = llm_graph.x.size()[0]
+    local_num_nodes = local_graph.x.size()[0]
+    primekg_num_nodes = primekg_graph.x.size()[0]
+    edge_index = torch.cat((llm_graph.edge_index,
+                            local_graph.edge_index + llm_num_nodes,
+                            primekg_graph.edge_index + llm_num_nodes + local_num_nodes), 0)
+    edge_attr = torch.cat((llm_graph.edge_attr, local_graph.edge_attr, primekg_graph.edge_attr), 0)
+
+
+    return Data(x=x, y=torch.tensor([relation_types.index(target)]), edge_index=edge_index, edge_attr=edge_attr,
+                event1_index=llm_graph.event1_index, event2_index=llm_graph.event2_index)
+
+def generate_combination_graph(**kwargs):
+    llm_graph = generate_relation_graph_llm(**kwargs)
+    local_graph = generate_local_graph_for_event(**kwargs)
+    primekg_graph = generate_relation_graph_primekg(**kwargs)
+
+    return combine_all_relation_graphs(llm_graph=llm_graph, local_graph=local_graph, primekg_graph=primekg_graph, **kwargs)
 
 def create_knowledge_graph_dataset(dataframe, graph_generation_function, **kwargs):
     def convert_row_to_graph(row, graph_generation_function, kwargs):
-        event1 = row['event1_text']
-        event2 = row['event2_text']
-        relation = row['class']
-        event1kg = graph_generation_function(event=event1, row=row, **kwargs)
-        event2kg = graph_generation_function(event=event2, row=row, **kwargs)
-        if event1kg is None or event2kg is None:
+        classification_graph = graph_generation_function(row=row, **kwargs)
+        if classification_graph is None:
             return None
-        graph = combine_graphs(graph1=event1kg, graph2=event2kg, target=relation)
-        graph["text"] = [row["text"]]
-        graph["event1_start"] = [row["event1_start"]]
-        graph["event1_end"] = [row["event1_end"]]
-        graph["event2_start"] = [row["event2_start"]]
-        graph["event2_end"] = [row["event2_end"]]
+        classification_graph["text"] = [row["text"]]
+        classification_graph["event1_start"] = [row["event1_start"]]
+        classification_graph["event1_end"] = [row["event1_end"]]
+        classification_graph["event2_start"] = [row["event2_start"]]
+        classification_graph["event2_end"] = [row["event2_end"]]
         return graph
 
     return DFDataset(dataframe, lambda row: convert_row_to_graph(row, graph_generation_function, kwargs))

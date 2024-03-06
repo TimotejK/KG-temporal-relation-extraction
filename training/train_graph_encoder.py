@@ -22,7 +22,7 @@ def prepare_dataset():
     dataset_val.pregenerate_and_filter()
     return dataset_train, dataset_val
 
-def prepare_dataset_local_graph():
+def prepare_dataset_combination_graph():
     df = read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
     df_train, df_val, df_test = split_data(df, oversample=True, label_name='class', train_size=0.7, val_size=0.2, split_by_documents=True)
     configuration = get_configuration_for_building_local_graph()
@@ -58,7 +58,7 @@ def compute_objective(eval_pred):
     return eval_pred["eval_accuracy"]
 
 def train():
-    dataset_train, dataset_val = prepare_dataset_local_graph()
+    dataset_train, dataset_val = prepare_dataset_combination_graph()
 
     model = GraphEncoder(node_size=768, edge_size=768, number_of_relations=3, dropout=0.2)
     # model = MultiModalPrediction(number_of_relations=3, combine_embeddings=True)
@@ -88,7 +88,7 @@ def train():
     trainer.train()
 
 def hyper_parameter_search():
-    dataset_train, dataset_val = prepare_dataset()
+    dataset_train, dataset_val = prepare_dataset_combination_graph()
 
     def model_init(trial):
         return GraphEncoder(node_size=768, edge_size=768, number_of_relations=3, dropout=0.2)
