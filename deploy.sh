@@ -10,3 +10,5 @@ scp -r custom_datasets timotej.knez@frida:/shared/home/timotej.knez/llm-graph-co
 scp -r models timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 scp -r training timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 scp -r train_graph.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
+scp -r train_text.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
+scp -r precompute.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
