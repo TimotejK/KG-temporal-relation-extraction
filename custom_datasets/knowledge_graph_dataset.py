@@ -81,8 +81,11 @@ def combine_all_relation_graphs(llm_kg, local_kg, primekg_kg, row, **kwargs):
     target = row["class"]
 
     # pad to size
-    entity_embedding_size = max(llm_kg.x.size()[1], local_kg.x.size()[1], primekg_kg.x.size()[1])
-    edge_embedding_size = max(llm_kg.edge_attr.size()[1], local_kg.edge_attr.size()[1], primekg_kg.edge_attr.size()[1])
+    # entity_embedding_size = max(llm_kg.x.size()[1], local_kg.x.size()[1], primekg_kg.x.size()[1])
+    entity_embedding_size = 768
+    # edge_embedding_size = max(llm_kg.edge_attr.size()[1], local_kg.edge_attr.size()[1], primekg_kg.edge_attr.size()[1])
+    edge_embedding_size = 768
+
     llm_kg.x = F.pad(llm_kg.x, (0, entity_embedding_size - llm_kg.x.size()[1]), "constant", 0)
     llm_kg.edge_attr = F.pad(llm_kg.edge_attr, (0, edge_embedding_size - llm_kg.edge_attr.size()[1]), "constant", 0)
     local_kg.x = F.pad(local_kg.x, (0, entity_embedding_size - local_kg.x.size()[1]), "constant", 0)

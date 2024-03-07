@@ -9,3 +9,4 @@ scp graph_building/node_embeddings.py timotej.knez@frida:/shared/home/timotej.kn
 scp -r custom_datasets timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 scp -r models timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 scp -r training timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
+scp -r train_graph.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction

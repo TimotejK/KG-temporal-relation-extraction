@@ -23,6 +23,10 @@ def prepare_dataset():
     return dataset_train, dataset_val
 
 def prepare_dataset_combination_graph():
+    if os.path.exists("pregeerated/dataset_train.pt") and os.path.exists("pregeerated/dataset_val.pt"):
+        dataset_train = torch.load("pregeerated/dataset_train.pt")
+        dataset_val = torch.load("pregeerated/dataset_val.pt")
+        return dataset_train, dataset_val
     df = read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
     df_train, df_val, df_test = split_data(df, oversample=True, label_name='class', train_size=0.7, val_size=0.2, split_by_documents=True)
     configuration = get_configuration_for_building_local_graph()
@@ -40,7 +44,9 @@ def prepare_dataset_combination_graph():
     dataset_train = create_knowledge_graph_dataset(df_train, generate_combination_graph, configuration=configuration, local_graph=patient_graphs_train, cache_only=True)
     dataset_val = create_knowledge_graph_dataset(df_val, generate_combination_graph, configuration=configuration, local_graph=patient_graphs_val, cache_only=True)
     dataset_train.pregenerate_and_filter()
+    torch.save(dataset_train, "pregeerated/dataset_train.pt")
     dataset_val.pregenerate_and_filter()
+    torch.save(dataset_val, "pregeerated/dataset_val.pt")
     return dataset_train, dataset_val
 
 def collate_function(examples):
