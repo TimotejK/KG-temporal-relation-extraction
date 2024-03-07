@@ -14,6 +14,7 @@ from custom_datasets import combining_data
 import torch.nn.functional as F
 
 from custom_datasets.combining_data import read_i2b2
+from graph_building import node_embeddings
 
 index_to_label = ['BEFORE', 'AFTER', 'OVERLAP', 'BEGINS-ON', 'CONTAINED-BY', 'CONTAINS', 'ENDS-ON', 'CONTINUES', 'TERMINATES', 'INITIATES', 'REINITIATES']
 labels = {'BEFORE': 0,
@@ -225,9 +226,12 @@ def get_embedding_for_entity(entity):
     if entity in linker.kb.cui_to_entity:
         canonical_name = linker.kb.cui_to_entity[entity].canonical_name
         definition = linker.kb.cui_to_entity[entity].definition
-        vector = get_multiword_word2vec(canonical_name)
+        # use bert embeddings instead of word2vec
+        vector = node_embeddings.sentence_embedding(canonical_name).detach()
+        # vector = get_multiword_word2vec(canonical_name)
     else:
-        vector = get_multiword_word2vec(entity)
+        vector = node_embeddings.sentence_embedding(entity).detach()
+        # vector = get_multiword_word2vec(entity)
     return vector
 
 def generate_graph_for_gnn(graph, entity1, entity2, y, text_features=None, use_entire_graph=True, neighbourhood=False):
@@ -261,10 +265,13 @@ def generate_graph_for_gnn(graph, entity1, entity2, y, text_features=None, use_e
             edge_attr.append(r[4])
         else:
             edge_attr.append(tuple(F.one_hot(torch.tensor(labels[r[1]]), 3).tolist()))
-    edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
-    embeddings = np.array([get_embedding_for_entity(n) for n in nodes])
+    if len(edge_index) > 0:
+        edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
+    else:
+        edge_index = torch.empty((0, 0))
+    embeddings = [get_embedding_for_entity(n) for n in nodes]
     # x = torch.ones(len(nodes), 50)
-    x = torch.tensor(embeddings)
+    x = torch.cat(embeddings, 0)
     edge_type = torch.tensor(edge_type)
     index1 = node_to_index[entity1]
     index2 = node_to_index[entity2]
@@ -481,10 +488,5 @@ if __name__ == '__main__':
     configuration.remove_target_relation = False
     configuration.use_realistic_graph = True
     df = read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
-    df = df[:54]
     in_memory_kg = construct_graph_from_text_only(df, configuration, dataset_type="train")
     torch.save(in_memory_kg, "computed_kg.pt")
-    test_dataset = KnowledgeGraphDataset(in_memory_kg, df, configuration=configuration)
-
-    graph = prepare_local_graph_dataset(df, configuration)
-    print(graph)

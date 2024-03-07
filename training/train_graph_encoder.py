@@ -35,8 +35,8 @@ def prepare_dataset_combination_graph():
         full_graph = torch.load("computed_kg.pt")
         train_document_ids = set(df_train["document_id"])
         val_document_ids = set(df_val["document_id"])
-        patient_graphs_train = [x for x in full_graph if x[4] in train_document_ids]
-        patient_graphs_val = [x for x in full_graph if x[4] in val_document_ids]
+        patient_graphs_train = [x for x in full_graph if x[3] in train_document_ids]
+        patient_graphs_val = [x for x in full_graph if x[3] in val_document_ids]
     else:
         patient_graphs_train = construct_graph_from_text_only(df_train, configuration, dataset_type="train")
         patient_graphs_val = construct_graph_from_text_only(df_val, configuration, dataset_type="val")
@@ -111,7 +111,7 @@ def hyper_parameter_search():
         }
 
     training_args = TrainingArguments(
-        output_dir="./results",
+        output_dir="./results-graph",
         per_device_train_batch_size=64,
         per_device_eval_batch_size=64,
         auto_find_batch_size=True,

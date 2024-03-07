@@ -81,10 +81,10 @@ def combine_all_relation_graphs(llm_kg, local_kg, primekg_kg, row, **kwargs):
     target = row["class"]
 
     # pad to size
-    # entity_embedding_size = max(llm_kg.x.size()[1], local_kg.x.size()[1], primekg_kg.x.size()[1])
-    entity_embedding_size = 768
-    # edge_embedding_size = max(llm_kg.edge_attr.size()[1], local_kg.edge_attr.size()[1], primekg_kg.edge_attr.size()[1])
-    edge_embedding_size = 768
+    entity_embedding_size = max(llm_kg.x.size()[1], local_kg.x.size()[1], primekg_kg.x.size()[1])
+    # entity_embedding_size = 768
+    edge_embedding_size = max(llm_kg.edge_attr.size()[1], local_kg.edge_attr.size()[1], primekg_kg.edge_attr.size()[1])
+    # edge_embedding_size = 768
 
     llm_kg.x = F.pad(llm_kg.x, (0, entity_embedding_size - llm_kg.x.size()[1]), "constant", 0)
     llm_kg.edge_attr = F.pad(llm_kg.edge_attr, (0, edge_embedding_size - llm_kg.edge_attr.size()[1]), "constant", 0)
@@ -116,7 +116,9 @@ def generate_combination_graph(**kwargs):
     llm_kg = generate_relation_graph_llm(**kwargs)
     local_kg = generate_local_graph_for_event(**kwargs)
     primekg_kg = generate_relation_graph_primekg(**kwargs)
-
+    if llm_kg is None or local_kg is None or primekg_kg is None:
+        print("Warning: no graph provided for input!")
+        return None
     return combine_all_relation_graphs(llm_kg=llm_kg, local_kg=local_kg, primekg_kg=primekg_kg, **kwargs)
 
 def create_knowledge_graph_dataset(dataframe, graph_generation_function, **kwargs):
@@ -131,7 +133,7 @@ def create_knowledge_graph_dataset(dataframe, graph_generation_function, **kwarg
         classification_graph["event2_end"] = [row["event2_end"]]
         return graph
 
-    return DFDataset(dataframe, lambda row: convert_row_to_graph(row, graph_generation_function, kwargs))
+    return DFDataset(dataframe, lambda row, args: convert_row_to_graph(row, graph_generation_function, args), kwargs)
 
 def create_knowledge_graph_dataset_with_local_graphs(dataframe, graph_generation_function):
     def convert_row_to_graph(row, graph_generation_function):

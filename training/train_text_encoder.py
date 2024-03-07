@@ -38,7 +38,7 @@ def compute_objective(eval_pred):
 def train():
     dataset_train, dataset_val = prepare_dataset_combination_graph()
 
-    model = GraphEncoder(node_size=768, edge_size=768, number_of_relations=3, dropout=0.2)
+    model = EntityBERTtextEncoder(number_of_relations=3)
     # model = MultiModalPrediction(number_of_relations=3, combine_embeddings=True)
 
     training_args = TrainingArguments(
