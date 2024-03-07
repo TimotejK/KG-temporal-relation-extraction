@@ -15,7 +15,7 @@ def sentence_embedding(text, type='bert'):
         tokens = tokenizer(text, return_tensors='pt', max_length=512)
         output = model(**tokens)
         last_hidden_state, pooler_output = output[0], output[1]
-        return pooler_output
+        return pooler_output.detach()
 
 if __name__ == '__main__':
     text = "This is a sample sentence."
