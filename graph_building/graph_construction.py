@@ -58,7 +58,8 @@ def link_to_umls(entity):
 
 def linked_umls(cuid):
     if cuid in list(umls_to_mondo['umls_id']):
-        return cuid, int(umls_to_mondo.query('umls_id == "' + cuid + '"')['mondo_id'])
+        if len(umls_to_mondo.query('umls_id == "' + cuid + '"')['mondo_id']) > 0:
+            return cuid, int(umls_to_mondo.query('umls_id == "' + cuid + '"')['mondo_id'].iloc[0])
     return cuid, None
 
 
