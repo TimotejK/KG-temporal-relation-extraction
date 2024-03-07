@@ -68,7 +68,11 @@ def get_node_details(mondo, entity_name):
     if disease_feature is None:
         disease_feature = PrimeKG.get_features(feature_type='disease')
     nodes = get_nodes()
-    features_disease = disease_feature.query('mondo_id == ' + str(mondo))
+    if isinstance(mondo, int) or mondo.isnumeric():
+        features_disease = disease_feature.query('mondo_id == ' + str(mondo) + '')
+    else:
+        print("Warning: invalid mondo_id")
+        features_disease = disease_feature.query('mondo_id == "' + str(mondo) + '"')
     definitions_and_descriptions = []
     for feature in features_disease.iloc:
         definitions_and_descriptions.append(feature['umls_description'])

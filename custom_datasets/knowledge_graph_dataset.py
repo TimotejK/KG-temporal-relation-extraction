@@ -100,7 +100,7 @@ def combine_all_relation_graphs(llm_kg, local_kg, primekg_kg, row, **kwargs):
 
     edge_index = torch.cat((llm_kg.edge_index,
                             local_kg.edge_index + llm_num_nodes,
-                            primekg_kg.edge_index + llm_num_nodes + local_num_nodes), 0)
+                            primekg_kg.edge_index + llm_num_nodes + local_num_nodes), 1)
     edge_attr = torch.cat((llm_kg.edge_attr, local_kg.edge_attr, primekg_kg.edge_attr), 0)
 
     # reconnect all edges going to the event nodes to the events from the llm_kg
@@ -131,7 +131,7 @@ def create_knowledge_graph_dataset(dataframe, graph_generation_function, **kwarg
         classification_graph["event1_end"] = [row["event1_end"]]
         classification_graph["event2_start"] = [row["event2_start"]]
         classification_graph["event2_end"] = [row["event2_end"]]
-        return graph
+        return classification_graph
 
     return DFDataset(dataframe, lambda row, args: convert_row_to_graph(row, graph_generation_function, args), kwargs)
 
