@@ -126,11 +126,11 @@ def create_knowledge_graph_dataset(dataframe, graph_generation_function, **kwarg
         classification_graph = graph_generation_function(row=row, **kwargs)
         if classification_graph is None:
             return None
-        classification_graph["text"] = [row["text"]]
-        classification_graph["event1_start"] = [row["event1_start"]]
-        classification_graph["event1_end"] = [row["event1_end"]]
-        classification_graph["event2_start"] = [row["event2_start"]]
-        classification_graph["event2_end"] = [row["event2_end"]]
+        classification_graph["text"] = row["text"]
+        classification_graph["event1_start"] = row["event1_start"]
+        classification_graph["event1_end"] = row["event1_end"]
+        classification_graph["event2_start"] = row["event2_start"]
+        classification_graph["event2_end"] = row["event2_end"]
         return classification_graph
 
     return DFDataset(dataframe, lambda row, args: convert_row_to_graph(row, graph_generation_function, args), kwargs)

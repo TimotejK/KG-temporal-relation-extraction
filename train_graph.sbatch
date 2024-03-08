@@ -2,7 +2,7 @@
 #SBATCH --job-name=train-graph
 #SBATCH --time=3-00:20:00
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=64G
+#SBATCH --mem=256G
 #SBATCH --partition=frida
 #SBATCH --account=lpt
 #SBATCH --nodes=1
