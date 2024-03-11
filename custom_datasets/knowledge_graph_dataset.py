@@ -80,6 +80,9 @@ def combine_all_relation_graphs(llm_kg, local_kg, primekg_kg, row, **kwargs):
     global relation_types
     target = row["class"]
 
+    if len(llm_kg.x.size()) < 2 or len(local_kg.x.size()) < 2 or len(primekg_kg.x.size()) < 2 or len(llm_kg.edge_attr.size()) < 2 or len(local_kg.edge_attr.size()) < 2 or len(primekg_kg.edge_attr.size()) < 2:
+        print("Warning: empty nodes or edges")
+        return None
     # pad to size
     entity_embedding_size = max(llm_kg.x.size()[1], local_kg.x.size()[1], primekg_kg.x.size()[1])
     # entity_embedding_size = 768

@@ -8,6 +8,7 @@ from transformers import Trainer, TrainingArguments
 
 from custom_datasets.common import split_data, get_configuration_for_building_local_graph
 from custom_datasets.combining_data import read_i2b2
+from custom_datasets.dataframe_dataset import DFDataset
 from custom_datasets.knowledge_graph_dataset import create_knowledge_graph_dataset, \
     generate_llm_graph_for_event, generate_combination_graph, generate_relation_graph_llm
 from graph_building.local_graph.build_local_patient_graph import construct_graph_from_text_only
@@ -23,9 +24,9 @@ def prepare_dataset_llm_only():
     return dataset_train, dataset_val
 
 def prepare_dataset_combination_graph():
-    if os.path.exists("pregeerated/dataset_train.pt") and os.path.exists("pregeerated/dataset_val.pt"):
-        dataset_train = torch.load("pregeerated/dataset_train.pt")
-        dataset_val = torch.load("pregeerated/dataset_val.pt")
+    if os.path.exists("pregenerated/dataset_train.pt") and os.path.exists("pregenerated/dataset_val.pt"):
+        dataset_train = DFDataset(save_path="pregenerated/dataset_train.pt")
+        dataset_val = DFDataset(save_path="pregenerated/dataset_val.pt")
         return dataset_train, dataset_val
     df = read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
     df_train, df_val, df_test = split_data(df, oversample=True, label_name='class', train_size=0.7, val_size=0.2, split_by_documents=True)
@@ -44,9 +45,9 @@ def prepare_dataset_combination_graph():
     dataset_train = create_knowledge_graph_dataset(df_train, generate_combination_graph, configuration=configuration, local_graph=patient_graphs_train, cache_only=True)
     dataset_val = create_knowledge_graph_dataset(df_val, generate_combination_graph, configuration=configuration, local_graph=patient_graphs_val, cache_only=True)
     dataset_train.pregenerate_and_filter()
-    torch.save(dataset_train, "pregeerated/dataset_train.pt")
+    dataset_train.save("pregenerated/dataset_train.pt")
     dataset_val.pregenerate_and_filter()
-    torch.save(dataset_val, "pregeerated/dataset_val.pt")
+    dataset_val.save("pregenerated/dataset_val.pt")
     return dataset_train, dataset_val
 
 def collate_function(examples):
@@ -64,7 +65,8 @@ def compute_objective(eval_pred):
     return eval_pred["eval_accuracy"]
 
 def train():
-    dataset_train, dataset_val = prepare_dataset_combination_graph()
+    # dataset_train, dataset_val = prepare_dataset_combination_graph()
+    dataset_train, dataset_val = prepare_dataset_llm_only()
 
     model = GraphEncoder(node_size=768, edge_size=768, number_of_relations=3, dropout=0.2)
     # model = MultiModalPrediction(number_of_relations=3, combine_embeddings=True)

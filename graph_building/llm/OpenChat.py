@@ -54,7 +54,7 @@ def get_kg_from_llm(term, category):
     # Process the response to triples
     print(response)
     triples = parse(response)
-    display_triplets(triples)
+    # display_triplets(triples)
     data = convert_triplets_to_pyg(triples, term)
     return data, response
 

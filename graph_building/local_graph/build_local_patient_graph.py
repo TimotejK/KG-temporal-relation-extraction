@@ -1,5 +1,6 @@
 import datetime
 import random
+import threading
 
 import gensim
 import gensim.downloader
@@ -9,7 +10,7 @@ import torch
 import torch_geometric
 from torch_geometric.data import Data
 
-from custom_datasets.common import compute_transitive_relation, custom_map, Configuration
+from custom_datasets.common import compute_transitive_relation, custom_map, Configuration, lock
 from custom_datasets import combining_data
 import torch.nn.functional as F
 
@@ -35,9 +36,10 @@ glove_vectors = None
 
 def link_entity_to_umls(entity):
     global nlp
-    if nlp is None:
-        nlp = spacy.load("en_core_sci_sm")
-        nlp.add_pipe("scispacy_linker", config={"resolve_abbreviations": True, "linker_name": "umls"})
+    with lock:
+        if nlp is None:
+            nlp = spacy.load("en_core_sci_sm")
+            nlp.add_pipe("scispacy_linker", config={"resolve_abbreviations": True, "linker_name": "umls"})
     entities = nlp(entity)
     if len(entities.ents) > 0:
         linked_entities = entities.ents[0]._.kb_ents
@@ -217,12 +219,13 @@ def get_multiword_word2vec(entity):
 
 def get_embedding_for_entity(entity):
     global nlp, glove_vectors
-    if nlp is None:
-        nlp = spacy.load("en_core_sci_sm")
-        nlp.add_pipe("scispacy_linker", config={"resolve_abbreviations": True, "linker_name": "umls"})
+    with lock:
+        if nlp is None:
+            nlp = spacy.load("en_core_sci_sm")
+            nlp.add_pipe("scispacy_linker", config={"resolve_abbreviations": True, "linker_name": "umls"})
+        if glove_vectors is None:
+            glove_vectors = gensim.downloader.load('glove-wiki-gigaword-50')
     linker = nlp.get_pipe("scispacy_linker")
-    if glove_vectors is None:
-        glove_vectors = gensim.downloader.load('glove-wiki-gigaword-50')
     if entity in linker.kb.cui_to_entity:
         canonical_name = linker.kb.cui_to_entity[entity].canonical_name
         definition = linker.kb.cui_to_entity[entity].definition
@@ -365,11 +368,12 @@ class KnowledgeGraphDataset(torch.utils.data.Dataset):
         self.labels = []
 
         global nlp, glove_vectors
-        if nlp is None:
-            nlp = spacy.load("en_core_sci_sm")
-            nlp.add_pipe("scispacy_linker", config={"resolve_abbreviations": True, "linker_name": "umls"})
-        if glove_vectors is None:
-            glove_vectors = gensim.downloader.load('glove-wiki-gigaword-50')
+        with lock:
+            if nlp is None:
+                nlp = spacy.load("en_core_sci_sm")
+                nlp.add_pipe("scispacy_linker", config={"resolve_abbreviations": True, "linker_name": "umls"})
+                if glove_vectors is None:
+                    glove_vectors = gensim.downloader.load('glove-wiki-gigaword-50')
 
         # with Pool(8) as pool:
         #     self.graphs = pool.map(create_graph, [(row, graph) for row in df.iterrows()])

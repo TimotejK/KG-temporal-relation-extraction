@@ -1,7 +1,6 @@
 import torch
 from torch import nn
 from transformers import AutoModel, AutoTokenizer
-import lightning as L
 
 import torch_geometric.nn as pyg_nn
 

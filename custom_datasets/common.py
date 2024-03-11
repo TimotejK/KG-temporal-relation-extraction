@@ -7,12 +7,12 @@ import threading
 
 index = 0
 number_of_finished = 0
-lock = None
+lock = threading.Lock()
 def custom_map(function, input_list):
     global index, number_of_finished, lock
     index = 0
     number_of_finished = 0
-    lock = threading.Lock()
+    # lock = threading.Lock()
     output_list = [None for _ in range(len(input_list))]
     def worker():
         current_index = 0

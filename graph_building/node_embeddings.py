@@ -1,6 +1,8 @@
 import torch
 from transformers import BertTokenizer,BertModel
 
+from custom_datasets.common import lock
+
 tokenizer = None
 model = None
 def sentence_embedding(text, type='bert'):
@@ -8,10 +10,11 @@ def sentence_embedding(text, type='bert'):
     if text is None or len(text.strip()) == 0:
         text = "empty"
     if type == 'bert':
-        if tokenizer is None:
-            tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        if model is None:
-            model = BertModel.from_pretrained("bert-base-uncased")
+        with lock:
+            if tokenizer is None:
+                tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+            if model is None:
+                model = BertModel.from_pretrained("bert-base-uncased")
         tokens = tokenizer(text, return_tensors='pt', max_length=512)
         output = model(**tokens)
         last_hidden_state, pooler_output = output[0], output[1]

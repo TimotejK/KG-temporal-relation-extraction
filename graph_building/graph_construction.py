@@ -5,6 +5,7 @@ from scispacy.linking import EntityLinker
 import torch
 from torch_geometric.data import Data
 
+from custom_datasets.common import lock
 from graph_building import node_embeddings
 from graph_building.node_embeddings import sentence_embedding
 
@@ -41,9 +42,10 @@ nlp = None
 
 def link_to_umls(entity):
     global nlp, umls_to_mondo
-    if nlp is None:
-        nlp = spacy.load("en_core_sci_sm")
-        nlp.add_pipe("scispacy_linker", config={"resolve_abbreviations": True, "linker_name": "umls"})
+    with lock:
+        if nlp is None:
+            nlp = spacy.load("en_core_sci_sm")
+            nlp.add_pipe("scispacy_linker", config={"resolve_abbreviations": True, "linker_name": "umls"})
     _, umls_to_mondo = get_PrimeKG()
     entities = nlp(entity)
     if len(entities.ents) > 0:
@@ -125,7 +127,7 @@ def get_subgraph(entity, entity_name):
         relations = [('self', entity, entity)]
 
 
-    display_graph(concepts, relations)
+    # display_graph(concepts, relations)
 
     # convert to torch geometric
     x = []

@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=train-graph
 #SBATCH --time=3-00:20:00
-#SBATCH --cpus-per-task=16
+#SBATCH --cpus-per-task=64
 #SBATCH --mem=256G
 #SBATCH --partition=frida
 #SBATCH --account=lpt
