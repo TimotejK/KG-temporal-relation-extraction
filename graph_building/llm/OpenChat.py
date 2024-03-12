@@ -48,9 +48,10 @@ def parse(response):
 def display_triplets(parsed_triplets):
     for source, relation, target in parsed_triplets:
         print(source, "--", relation, "->", target)
-def get_kg_from_llm(term, category):
+def get_kg_from_llm(term, category, response=None):
     prompt = generate_prompt_for_open_chat(term, category)
-    response = ollama.invoke(prompt)
+    if response is None:
+        response = ollama.invoke(prompt)
     # Process the response to triples
     print(response)
     triples = parse(response)

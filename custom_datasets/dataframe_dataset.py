@@ -38,7 +38,7 @@ class DFDataset(Dataset):
             print("Graph", ind, "generated")
 
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             print(f"\n ... executing workers ...\n")
             for i in range(len(self.df)):
                 executor.submit(pretvori, i, environment)
