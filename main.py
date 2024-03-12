@@ -1,11 +1,13 @@
 import argparse
+import concurrent.futures
 
 import torch
 import sys
 
 from custom_datasets.combining_data import read_i2b2
-from custom_datasets.common import Configuration
-from custom_datasets.knowledge_graph_dataset import get_llm_responses_only
+from custom_datasets.common import Configuration, lock
+from custom_datasets.knowledge_graph_dataset import get_llm_responses_only, generate_relation_graph_llm, \
+    generate_relation_graph_primekg
 from graph_building.local_graph.build_local_patient_graph import construct_graph_from_text_only
 from training import train_text_encoder, train_graph_encoder
 from training.train_graph_encoder import hyper_parameter_search, train
@@ -28,6 +30,30 @@ def precompute_local_graphs():
     in_memory_kg = construct_graph_from_text_only(df, configuration, dataset_type="train")
     torch.save(in_memory_kg, "computed_kg.pt")
 
+def precompute_graphs_for_analysis():
+    df = read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
+    generated = [None for _ in df.iloc]
+    def row_converter(row, args):
+        llm_kg = generate_relation_graph_llm(row, cache_only=True)
+        primekg_kg = generate_relation_graph_primekg(row)
+        return(llm_kg, primekg_kg)
+
+    environment = {"generated": generated, "df": df.iloc, "row_converter": row_converter, "args": {}, "finished": 0}
+    def pretvori(ind, environment):
+        environment["generated"][ind] = environment["row_converter"](environment["df"][ind], environment["args"])
+        with lock:
+            environment["finished"] += 1
+            if environment["finished"] % 100 == 0:
+                torch.save(environment["generated"], "graphs_for_analysis.pt")
+        print("Graph", ind, "generated")
+
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
+        print(f"\n ... executing workers ...\n")
+        for i in range(len(df)):
+            executor.submit(pretvori, i, environment)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="sample argument parser")
     parser.add_argument("--method", default="prepare_llm_responses")
@@ -40,3 +66,5 @@ if __name__ == '__main__':
         train_text_encoder.hyper_parameter_search()
     elif args.method == "precompute_local_graphs":
         precompute_local_graphs()
+    elif args.method == "precompute_graphs_for_analysis":
+        precompute_graphs_for_analysis()

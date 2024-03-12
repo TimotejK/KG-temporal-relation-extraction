@@ -12,3 +12,4 @@ scp -r training timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construct
 scp -r train_graph.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 scp -r train_text.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 scp -r precompute.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
+scp -r precompute_graphs_for_analysis.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
