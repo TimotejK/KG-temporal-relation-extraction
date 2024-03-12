@@ -8,7 +8,7 @@ from transformers import Trainer, TrainingArguments
 from custom_datasets.combining_data import read_i2b2
 from custom_datasets.common import split_data
 from custom_datasets.knowledge_graph_dataset import create_knowledge_graph_dataset, generate_llm_graph_for_event, \
-    generate_relation_graph_llm
+    generate_relation_graph_llm, relation_types
 from models.knowledge_graph_encoder import GraphEncoder
 from models.text_encoder import EntityBERTtextEncoder
 from training.train_graph_encoder import prepare_dataset_combination_graph
@@ -24,8 +24,9 @@ def prepare_dataset_llm_only():
     return dataset_train, dataset_val
 
 def prepare_dataset_no_graph():
-    def get_empty_graph(**kwargs):
-        return Data(x=torch.empty((0,0)), y=torch.empty((0,0)), edge_index=torch.empty((0,0)), edge_attr=torch.empty((0,0)),
+    def get_empty_graph(row, **kwargs):
+        target = row["class"]
+        return Data(x=torch.empty((0,0)), y=torch.tensor([relation_types.index(target)]), edge_index=torch.empty((0,0)), edge_attr=torch.empty((0,0)),
                     event1_index=0, event2_index=0)
     df = read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
     df_train, df_val, df_test = split_data(df, oversample=True, label_name='class', train_size=0.7, val_size=0.2, split_by_documents=True)
