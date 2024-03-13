@@ -123,7 +123,7 @@ def hyper_parameter_search():
     )
 
     best_trial = trainer.hyperparameter_search(
-        direction="maximize",
+        direction="minimize",
         backend="wandb",
         hp_space=wandb_hp_space,
         n_trials=30,

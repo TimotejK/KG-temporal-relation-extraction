@@ -81,4 +81,4 @@ class GraphEncoder(nn.Module):
         x = self.post_mp(x)
         x = self.softmax(x)
         loss = self.criterion(x, labels)
-        return {"loss": loss, "predictions": x}
+        return {"loss": loss, "logits": x}

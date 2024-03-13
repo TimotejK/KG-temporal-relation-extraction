@@ -59,4 +59,4 @@ class EntityBERTtextEncoder(nn.Module):
         x = self.post_layers(bert_output)
         x = self.softmax(x)
         loss = self.criterion(x, labels)
-        return {"loss": loss, "predictions": x}
+        return {"loss": loss, "logits": x}
