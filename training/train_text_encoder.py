@@ -93,8 +93,7 @@ def hyper_parameter_search():
             "metric": {"name": "validation_loss", "goal": "minimize"},
             "parameters": {
                 "learning_rate": {"distribution": "uniform", "min": 0.001, "max": 0.5},
-                "weight_decay": {"distribution": "uniform", "min": 0.001, "max": 0.5},
-                "optimizer": {"values": ["sgd", "adam", "adamw"]}
+                "weight_decay": {"distribution": "uniform", "min": 0.001, "max": 0.5}
             },
         }
 
@@ -105,11 +104,11 @@ def hyper_parameter_search():
         auto_find_batch_size=True,
         learning_rate=1e-2,
         weight_decay=1e-4,
-        num_train_epochs=50,
+        num_train_epochs=10,
         gradient_accumulation_steps=1,
         evaluation_strategy="epoch",
         logging_strategy="epoch",
-        save_steps=5000,
+        save_steps=1000,
         push_to_hub=False
     )
 
@@ -127,8 +126,8 @@ def hyper_parameter_search():
         direction="maximize",
         backend="wandb",
         hp_space=wandb_hp_space,
-        n_trials=100,
-        # compute_objective=compute_objective,
+        n_trials=30,
+        compute_objective=compute_objective,
     )
     return best_trial
 

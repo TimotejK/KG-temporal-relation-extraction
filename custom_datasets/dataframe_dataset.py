@@ -43,3 +43,4 @@ class DFDataset(Dataset):
             for i in range(len(self.df)):
                 executor.submit(pretvori, i, environment)
         self.generated = [x for x in self.generated if x is not None]
+        print("Generated", len(self.generated), "examples")
