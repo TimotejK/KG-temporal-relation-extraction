@@ -48,7 +48,7 @@ def compute_metrics(eval_pred):
     return metric.compute(predictions=predictions, references=labels)
 
 def compute_objective(eval_pred):
-    return eval_pred["eval_accuracy"]
+    return eval_pred["eval_loss"]
 
 def train():
     dataset_train, dataset_val = prepare_dataset_no_graph()
@@ -58,12 +58,12 @@ def train():
 
     training_args = TrainingArguments(
         output_dir="./results",
-        learning_rate=2e-2,
+        learning_rate=2e-4,
         per_device_train_batch_size=64,
         per_device_eval_batch_size=64,
         auto_find_batch_size=True,
         num_train_epochs=50,
-        weight_decay=0.01,
+        weight_decay=0.0000001,
         gradient_accumulation_steps=1,
         evaluation_strategy="epoch",
         logging_strategy="epoch",
@@ -92,8 +92,8 @@ def hyper_parameter_search():
             "method": "random",
             "metric": {"name": "validation_loss", "goal": "minimize"},
             "parameters": {
-                "learning_rate": {"distribution": "uniform", "min": 0.001, "max": 0.5},
-                "weight_decay": {"distribution": "uniform", "min": 0.001, "max": 0.5}
+                "learning_rate": {"distribution": "uniform", "min": 1e-5, "max": 1e-2},
+                "weight_decay": {"distribution": "uniform", "min": 1e-5, "max": 1e-1}
             },
         }
 
@@ -132,4 +132,4 @@ def hyper_parameter_search():
     return best_trial
 
 if __name__ == '__main__':
-    train()
+    hyper_parameter_search()
