@@ -3,6 +3,9 @@ import os.path
 import torch
 import torch.nn.functional as F
 from torch_geometric.data import Data
+
+from custom_datasets.combining_data import window_row_entity_bert
+from custom_datasets.common import add_event_tokens
 from custom_datasets.dataframe_dataset import DFDataset
 from graph_building.graph_construction import link_to_umls
 from graph_building.graph_construction import get_subgraph
@@ -129,11 +132,12 @@ def create_knowledge_graph_dataset(dataframe, graph_generation_function, **kwarg
         classification_graph = graph_generation_function(row=row, **kwargs)
         if classification_graph is None:
             return None
-        classification_graph["text"] = row["text"]
-        classification_graph["event1_start"] = row["event1_start"]
-        classification_graph["event1_end"] = row["event1_end"]
-        classification_graph["event2_start"] = row["event2_start"]
-        classification_graph["event2_end"] = row["event2_end"]
+        # use convert row
+        row = window_row_entity_bert(row)
+        if row is None:
+            return None
+        classification_graph["text"], classification_graph["event1_start"], classification_graph["event1_end"], classification_graph["event2_start"], classification_graph["event2_end"] \
+            = add_event_tokens(row["text"], row["event1_start"], row["event1_end"], row["event2_start"], row["event2_end"])
         return classification_graph
 
     return DFDataset(dataframe, lambda row, args: convert_row_to_graph(row, graph_generation_function, args), kwargs)

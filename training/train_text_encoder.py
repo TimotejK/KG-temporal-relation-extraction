@@ -5,7 +5,8 @@ import torch
 from torch_geometric.data import DataLoader, Data
 from transformers import Trainer, TrainingArguments
 
-from custom_datasets.combining_data import read_i2b2
+from custom_datasets import combining_data
+from custom_datasets.combining_data import read_i2b2, normalize_event_order
 from custom_datasets.common import split_data
 from custom_datasets.knowledge_graph_dataset import create_knowledge_graph_dataset, generate_llm_graph_for_event, \
     generate_relation_graph_llm, relation_types
@@ -29,6 +30,7 @@ def prepare_dataset_no_graph():
         return Data(x=torch.empty((0,0)), y=torch.tensor([relation_types.index(target)]), edge_index=torch.empty((0,0)), edge_attr=torch.empty((0,0)),
                     event1_index=0, event2_index=0)
     df = read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
+    df = normalize_event_order(df)
     df_train, df_val, df_test = split_data(df, oversample=True, label_name='class', train_size=0.7, val_size=0.2, split_by_documents=True)
     dataset_train = create_knowledge_graph_dataset(df_train, get_empty_graph, cache_only=True)
     dataset_val = create_knowledge_graph_dataset(df_val, get_empty_graph, cache_only=True)
@@ -51,25 +53,29 @@ def compute_objective(eval_pred):
     return eval_pred["eval_loss"]
 
 def train():
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    print(device)
     dataset_train, dataset_val = prepare_dataset_no_graph()
 
     model = EntityBERTtextEncoder(number_of_relations=3)
+    model.to(device)
     # model = MultiModalPrediction(number_of_relations=3, combine_embeddings=True)
 
     training_args = TrainingArguments(
         output_dir="./results",
-        learning_rate=2e-4,
+        learning_rate=0.01,
         per_device_train_batch_size=64,
         per_device_eval_batch_size=64,
         auto_find_batch_size=True,
         num_train_epochs=50,
-        weight_decay=0.0000001,
+        weight_decay=0.001,
         gradient_accumulation_steps=1,
         evaluation_strategy="epoch",
         logging_strategy="epoch",
         push_to_hub=False
     )
-
+    # "adamw_hf", "adamw_torch", "adamw_torch_fused", "adamw_apex_fused", "adamw_anyprecision" or "adafactor"
+    training_args.set_optimizer(name="adafactor")
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -102,9 +108,9 @@ def hyper_parameter_search():
         per_device_train_batch_size=64,
         per_device_eval_batch_size=64,
         auto_find_batch_size=True,
-        learning_rate=1e-2,
-        weight_decay=1e-4,
-        num_train_epochs=10,
+        learning_rate=2e-4,
+        weight_decay=0.0000001,
+        num_train_epochs=50,
         gradient_accumulation_steps=1,
         evaluation_strategy="epoch",
         logging_strategy="epoch",
@@ -126,10 +132,10 @@ def hyper_parameter_search():
         direction="minimize",
         backend="wandb",
         hp_space=wandb_hp_space,
-        n_trials=30,
+        n_trials=40,
         compute_objective=compute_objective,
     )
     return best_trial
 
 if __name__ == '__main__':
-    hyper_parameter_search()
+    train()

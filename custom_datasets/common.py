@@ -170,6 +170,49 @@ def oversample(df, oversample=True, label_name='class'):
         df = df.sample(frac=1, random_state=42).reset_index(drop=True)
     return df
 
+def add_event_tokens(text, event1_start, event1_end, event2_start, event2_end):
+    tag_start1, tag_start2, tag_end1, tag_end2 = "<e1>", "<e2>", "</e1>", "</e2>"
+    # tag_start1, tag_start2, tag_end1, tag_end2 = "<e>", "<e>", "</e>", "</e>"
+    text = text[:event1_start] + tag_start1 + text[event1_start:]
+    if event1_end >= event1_start:
+        event1_end += len(tag_start1)
+    if event2_start >= event1_start:
+        event2_start += len(tag_start1)
+    if event2_end >= event1_start:
+        event2_end += len(tag_start1)
+    if event1_start >= event1_start:
+        event1_start += len(tag_start1)
+
+    text = text[:event1_end] + tag_end1 + text[event1_end:]
+    if event1_start > event1_end:
+        event1_start += len(tag_end1)
+    if event2_start > event1_end:
+        event2_start += len(tag_end1)
+    if event2_end > event1_end:
+        event2_end += len(tag_end1)
+
+    if max(event1_start, event2_start) < min(event1_end, event2_end):
+        return text, event1_start, event1_end, event1_start, event1_end
+
+    text = text[:event2_start] + tag_start2 + text[event2_start:]
+    if event1_start >= event2_start:
+        event1_start += len(tag_start2)
+    if event1_end >= event2_start:
+        event1_end += len(tag_start2)
+    if event2_end >= event2_start:
+        event2_end += len(tag_start2)
+    if event2_start >= event2_start:
+        event2_start += len(tag_start2)
+
+    text = text[:event2_end] + tag_end2 + text[event2_end:]
+    if event1_start >= event2_end:
+        event1_start += len(tag_end2)
+    if event1_end >= event2_end:
+        event1_end += len(tag_end2)
+    if event2_start >= event2_end:
+        event2_start += len(tag_end2)
+    return text, event1_start, event1_end, event2_start, event2_end
+
 def compute_transitive_relation(relation1, relation2):
     if relation1 == "BEFORE" and relation2 == "BEFORE":
         return "BEFORE"

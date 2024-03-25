@@ -325,6 +325,42 @@ def switch_events(row):
         row['event1_end_time'], row['event2_end_time'] = row['event2_end_time'], row['event1_end_time']
     return row
 
+nlp = English()
+tokenizer = Tokenizer(nlp.vocab)
+def window_row_entity_bert(row, window_size=60, normalize_event_order=True):
+    if normalize_event_order:
+        if row['event1_start'] > row['event2_start']:
+            row = switch_events(row)
+    tokens = tokenizer(row['text'])
+    start = min(row['event1_start'], row['event2_start'])
+    end = max(row['event1_end'], row['event2_end'])
+    start_token, _ = get_token_for_char(tokens, start)
+    end_token, _ = get_token_for_char(tokens, end)
+    if end_token - start_token > window_size:
+        return None
+    start_token -= (window_size - (end_token - start_token)) // 2
+    end_token += (window_size - (end_token - start_token)) // 2
+    end_token += max(0, -start_token)
+    start_token = max(0, start_token)
+    end_token = min(end_token, len(tokens) - 1)
+    start = tokens[start_token].idx
+    end = tokens[end_token].idx + len(tokens[end_token])
+    row['text'] = row['text'][start:end]
+    row['event1_start'] = row['event1_start'] - start
+    row['event1_end'] = row['event1_end'] - start
+    row['event2_start'] = row['event2_start'] - start
+    row['event2_end'] = row['event2_end'] - start
+    return row
+
+def normalize_event_order(df):
+    new_rows = []
+    for i, row in df.iterrows():
+        if normalize_event_order:
+            if row['event1_start'] > row['event2_start']:
+                row = switch_events(row)
+            new_rows.append(row)
+
+    return pd.concat(new_rows, axis=1).T # TODO preveri ce je prav
 
 def window_for_entity_bert(df, window_size=60, normalize_event_order=True):
     nlp = English()
