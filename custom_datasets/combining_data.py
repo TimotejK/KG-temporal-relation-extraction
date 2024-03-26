@@ -360,7 +360,7 @@ def normalize_event_order(df):
                 row = switch_events(row)
             new_rows.append(row)
 
-    return pd.concat(new_rows, axis=1).T # TODO preveri ce je prav
+    return pd.concat(new_rows, axis=1).T
 
 def window_for_entity_bert(df, window_size=60, normalize_event_order=True):
     nlp = English()

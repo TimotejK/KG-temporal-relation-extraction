@@ -15,6 +15,8 @@ class DFDataset(Dataset):
             self.load(save_path)
 
     def __len__(self):
+        if self.generated is not None:
+            return len(self.generated)
         return len(self.df)
 
     def __getitem__(self, idx):

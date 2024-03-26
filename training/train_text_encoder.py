@@ -85,6 +85,7 @@ def train():
         compute_metrics=compute_metrics
     )
     trainer.train()
+    torch.save(model, "text-model.pt")
 
 def hyper_parameter_search():
     dataset_train, dataset_val = prepare_dataset_no_graph()
@@ -135,6 +136,7 @@ def hyper_parameter_search():
         n_trials=40,
         compute_objective=compute_objective,
     )
+    torch.save(best_trial, "text-best-trail.pt")
     return best_trial
 
 if __name__ == '__main__':
