@@ -34,6 +34,10 @@ def update_pregenerated_graph(graph):
     graph.edge_attr = edge_attr
     return graph
 
+def fix_precomputed_dataset(dataset):
+    for i in range(len(dataset.generated)):
+        dataset.generated[i] = update_pregenerated_graph(dataset.generated[i])
+    return dataset
 
 
 if __name__ == '__main__':
