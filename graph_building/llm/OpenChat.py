@@ -166,6 +166,6 @@ def generate_prompt_for_open_chat(term, category):
     return prompt
 
 if __name__ == '__main__':
-    print(ollama.invoke("Write an essey about why the sky is blue"))
-    # kg = get_kg_from_llm("An bdominal CAT scan", "condition")
-    # print(kg)
+    # print(ollama.invoke("Write an essey about why the sky is blue"))
+    kg = get_kg_from_llm("Broken arm", "condition")
+    print(kg)
