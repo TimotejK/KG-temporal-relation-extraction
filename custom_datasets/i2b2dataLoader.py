@@ -95,7 +95,7 @@ def load_absolute_data(full_text=False, use_test_files=False, include_rows_witho
         pass
     return pandas.DataFrame(rows,
             columns=["text", "class", "event1_start", "event1_end", "event2_start", "event2_end", "event1_id",
-                     "event2_id", "file_id", "timexs", "minutes_between_starts", "minutes_between_ends", "minutes_between_means",
+                     "event2_id", "file_id", "timexs", "additional_document_info", "minutes_between_starts", "minutes_between_ends", "minutes_between_means",
                      "event1_text", "event2_text",
                      "additional_information"])
 
@@ -119,6 +119,7 @@ def load_data(full_text=False, use_test_files=False):
         annotations = root[1]
         events = {}
         links = []
+        times = []
         for a in annotations:
             if a.tag == 'EVENT':
                 events[a.attrib['id']] = a.attrib
@@ -126,6 +127,12 @@ def load_data(full_text=False, use_test_files=False):
                 events[a.attrib['id']] = a.attrib
             if a.tag == 'TLINK':
                 links.append(a.attrib)
+            if a.tag == 'SECTIME':
+                times.append(a.attrib)
+
+        additional_document_info = {"times": []}
+        for time in times:
+            additional_document_info["times"].append((time["type"], time["dvalue"]))
 
         for link in links:
             if full_text:
@@ -146,7 +153,7 @@ def load_data(full_text=False, use_test_files=False):
                                        'type': events[e]['type']})
 
                 rows.append(
-                    [text, link["type"], s1, e1, s2, e2, link['fromID'], link['toID'], file_id, timexs])
+                    [text, link["type"], s1, e1, s2, e2, link['fromID'], link['toID'], file_id, timexs, additional_document_info])
             else:
                 if not link['fromID'].startswith('E') or not link['toID'].startswith('E'):
                     continue
@@ -185,8 +192,8 @@ def load_data(full_text=False, use_test_files=False):
                                            'val': events[e]['val'],
                                            'type': events[e]['type']})
 
-                rows.append([text[start:end], link["type"], s1, e1, s2, e2, link['fromID'], link['toID'], file_id, timexs])
-    return pandas.DataFrame(rows, columns=["text", "class", "event1_start", "event1_end", "event2_start", "event2_end", "event1_id", "event2_id", "file_id", "timexs"])
+                rows.append([text[start:end], link["type"], s1, e1, s2, e2, link['fromID'], link['toID'], file_id, timexs, additional_document_info])
+    return pandas.DataFrame(rows, columns=["text", "class", "event1_start", "event1_end", "event2_start", "event2_end", "event1_id", "event2_id", "file_id", "timexs", "additional_document_info"])
 
 def single_events():
     data_folder = 'data/i2b2'

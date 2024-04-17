@@ -23,13 +23,13 @@ def read_i2b2(full_text=False, use_test_files=False, include_rows_without_absolu
         additional_list = [additional_information[key] for key in keys]
         relations.append([relation['text'], relation['class'], relation['event1_start'], relation['event1_end'], None,
                           relation['event2_start'], relation['event2_end'], None, relation['event1_text'],
-                          relation['event2_text'], relation['file_id'], "I2B2",
+                          relation['event2_text'], relation['file_id'], "I2B2", relation["additional_document_info"],
                           relation['minutes_between_means']] + additional_list)
 
     df = pandas.DataFrame(relations)
     df.columns = ['text', 'class', 'event1_start', 'event1_end', 'event1_type', 'event2_start', 'event2_end',
                   'event2_type', 'event1_text',
-                  'event2_text', 'document_id', 'source', 'minutes_between_means'] + keys
+                  'event2_text', 'document_id', 'source', "additional_document_info", 'minutes_between_means'] + keys
     return df
 
 
@@ -492,4 +492,4 @@ if __name__ == '__main__':
     # macrobat_df = read_macrobat()
     # df = pd.concat((read_i2b2(), read_fine_grained_relations()))
     # build_konwledge_graph(df)
-    print(df)
+    print(i2b2df)

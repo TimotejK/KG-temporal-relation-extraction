@@ -1,5 +1,13 @@
+import re
+
 import torch
 import torch.nn.functional as F
+
+import date2vec.date_embedding
+from custom_datasets import combining_data
+from graph_building.node_embeddings import sentence_embedding
+
+
 def generate_edge_embedding(edge_type, edge_tensor, word_embedding_size=768):
     edge_type_index = ["date", "temporal_relation", "general_relation", "equivalent"].index(edge_type)
     edge_type_tensor = F.one_hot(torch.tensor(0), 4)
@@ -7,7 +15,6 @@ def generate_edge_embedding(edge_type, edge_tensor, word_embedding_size=768):
     if edge_type == "temporal_relation":
         return torch.cat((edge_type_tensor, edge_tensor[:3], torch.zeros(word_embedding_size)))
     elif edge_type == "date":
-        # TODO use date2vec embeddings for time
         return torch.cat((edge_type_tensor, torch.zeros(3), edge_tensor))
     elif edge_type == "general_relation":
         return torch.cat((edge_type_tensor, torch.zeros(3), edge_tensor))
@@ -36,6 +43,8 @@ def update_pregenerated_graph(graph):
     for i in range(edges_local_graph_start, edges_primekg_start):
         nodes_primekg_start = max(nodes_primekg_start, int(graph.edge_index[0][i]))
         nodes_primekg_start = max(nodes_primekg_start, int(graph.edge_index[1][i]))
+    edges_original_end = len(graph.edge_attr)
+    nodes_original_end = len(graph.x)
 
     # add additional features
     edge_features = []
@@ -50,6 +59,27 @@ def update_pregenerated_graph(graph):
             # primekg graph
             edge_type = 'general_relation'
         edge_features.append(generate_edge_embedding(edge_type, graph.edge_attr[i]))
+
+    # add document node connected to all nodes from the document
+    graph.x = torch.cat((graph.x, sentence_embedding("Document")))
+    document_node_index = len(graph.x) - 1
+    new_edges = [[],[]]
+    for i in range(edges_local_graph_start, edges_primekg_start):
+        new_edges[0].append(document_node_index)
+        new_edges[1].append(i)
+
+    # add new nodes
+    discharge, admission = get_more_information_from_graph(graph.text, graph.event1_start, graph.event2_start, graph.event1_end, graph.event2_end)
+    graph.x = torch.cat((graph.x, sentence_embedding("Admission"), sentence_embedding("Discharge")))
+    new_edges[0].append(document_node_index)
+    new_edges[1].append(len(graph.x)-2)
+    new_edges[0].append(document_node_index)
+    new_edges[1].append(len(graph.x)-1)
+    edge_features.append(generate_edge_embedding('date', date2vec.date_embedding.compute_date_embedding(*admission)))
+    edge_features.append(generate_edge_embedding('date', date2vec.date_embedding.compute_date_embedding(*discharge)))
+
+    graph.edge_index = torch.cat((graph.edge_index, torch.tensor(new_edges)), dim=1)
+
     edge_attr = torch.cat([x.reshape(-1, 1) for x in edge_features], dim=1).T
     graph.edge_attr = edge_attr
     return graph
@@ -59,7 +89,32 @@ def fix_precomputed_dataset(dataset):
         dataset.generated[i] = update_pregenerated_graph(dataset.generated[i])
     return dataset
 
+i2b2_dataset = None
+def get_more_information_from_graph(text, event1_start, event2_start, event1_end, event2_end):
+    global i2b2_dataset
+    if i2b2_dataset is None:
+        i2b2_dataset = combining_data.read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
+
+    row = i2b2_dataset[(i2b2_dataset["text"].str.contains(re.escape(text))) &
+                       (i2b2_dataset["event1_start"] == event1_start) &
+                       (i2b2_dataset["event1_end"] == event1_end) &
+                       (i2b2_dataset["event2_start"] == event2_start) &
+                       (i2b2_dataset["event2_end"] == event2_end)]
+    admission = [0,0,0,0,0,0]
+    dct = [0,0,0,0,0,0]
+    def convert_time_string_to_tuple(time_strign):
+        x = re.search("(\d{4})-(\d{1,2})-(\d{1,2})", time_strign)
+        return [x[1], x[2], x[3], 0, 0, 0]
+    if len(row) >= 1:
+        for time in row["additional_document_info"].iloc[0]["times"]:
+            if time[0] == "ADMISSION":
+                admission = convert_time_string_to_tuple(time[1])
+            if time[0] == "DISCHARGE":
+                dct = convert_time_string_to_tuple(time[1])
+    return dct, admission
+
 
 if __name__ == '__main__':
     graph = torch.load("testni_graf.pt")
+    # get_more_information_from_graph(graph.text, graph.event1_start, graph.event2_start, graph.event1_end, graph.event2_end)
     print(update_pregenerated_graph(graph))
