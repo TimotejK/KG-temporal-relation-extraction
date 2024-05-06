@@ -25,11 +25,19 @@ def prepare_dataset_llm_only():
     return dataset_train, dataset_val
 
 def prepare_dataset_combination_graph():
+    if os.path.exists("pregenerated/dataset_train_fixed.pt") and os.path.exists("pregenerated/dataset_val_fixed.pt"):
+        dataset_train = DFDataset(save_path="pregenerated/dataset_train.pt")
+        dataset_val = DFDataset(save_path="pregenerated/dataset_val.pt")
+        return dataset_train, dataset_val
     if os.path.exists("pregenerated/dataset_train.pt") and os.path.exists("pregenerated/dataset_val.pt"):
         dataset_train = DFDataset(save_path="pregenerated/dataset_train.pt")
         dataset_val = DFDataset(save_path="pregenerated/dataset_val.pt")
+        print("Fixing precomputed train dataset")
         dataset_train = fix_precomputed_dataset(dataset_train)
+        print("Fixing precomputed val dataset")
         dataset_val = fix_precomputed_dataset(dataset_val)
+        torch.save(dataset_train, "pregenerated/dataset_train_fixed.pt")
+        torch.save(dataset_val, "pregenerated/dataset_val_fixed.pt")
         return dataset_train, dataset_val
     df = read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
     df_train, df_val, df_test = split_data(df, oversample=True, label_name='class', train_size=0.7, val_size=0.2, split_by_documents=True)
@@ -102,17 +110,16 @@ def hyper_parameter_search():
     dataset_train, dataset_val = prepare_dataset_combination_graph()
 
     def model_init(trial):
-        return GraphEncoder(node_size=768, edge_size=768 + 3, number_of_relations=3, dropout=0.2)
+        return GraphEncoder(node_size=768, edge_size=768 + 7, number_of_relations=3, dropout=0.2)
 
     def wandb_hp_space(trial):
         return {
-            "name": "graphsweep",
+            "name": "graphsweep-new",
             "method": "random",
             "metric": {"name": "validation_loss", "goal": "minimize"},
             "parameters": {
                 "learning_rate": {"distribution": "uniform", "min": 1e-6, "max": 1e-1},
-                "weight_decay": {"distribution": "uniform", "min": 1e-6, "max": 1e-1},
-                "optimizer": {"values": ["sgd", "adam", "adamw"]}
+                "weight_decay": {"distribution": "uniform", "min": 1e-6, "max": 1e-1}
             },
         }
 

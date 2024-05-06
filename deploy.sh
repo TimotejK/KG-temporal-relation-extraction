@@ -1,6 +1,7 @@
 #!/bin/bash
 scp main.py timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 rsync -av -r graph_building/local_graph timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction/graph_building
+rsync -av -r date2vec timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 scp -r graph_building/llm timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction/graph_building
 scp graph_building/graph_construction.py timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction/graph_building/graph_construction.py
 scp graph_building/node_embeddings.py timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction/graph_building/node_embeddings.py
