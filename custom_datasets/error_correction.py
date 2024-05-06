@@ -40,9 +40,11 @@ def update_pregenerated_graph(graph):
     for i in range(0, edges_local_graph_start):
         nodes_local_graph_start = max(nodes_local_graph_start, int(graph.edge_index[0][i]))
         nodes_local_graph_start = max(nodes_local_graph_start, int(graph.edge_index[1][i]))
+    nodes_local_graph_start += 1
     for i in range(edges_local_graph_start, edges_primekg_start):
         nodes_primekg_start = max(nodes_primekg_start, int(graph.edge_index[0][i]))
         nodes_primekg_start = max(nodes_primekg_start, int(graph.edge_index[1][i]))
+    nodes_primekg_start += 1
     edges_original_end = len(graph.edge_attr)
     nodes_original_end = len(graph.x)
 
@@ -91,6 +93,7 @@ def fix_precomputed_dataset(dataset):
 
 i2b2_dataset = None
 def get_more_information_from_graph(text, event1_start, event2_start, event1_end, event2_end):
+    # TODO add support for datasets other than i2b2
     global i2b2_dataset
     if i2b2_dataset is None:
         i2b2_dataset = combining_data.read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)

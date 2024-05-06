@@ -92,6 +92,7 @@ def combine_all_relation_graphs(llm_kg, local_kg, primekg_kg, row, **kwargs):
     edge_embedding_size = max(llm_kg.edge_attr.size()[1], local_kg.edge_attr.size()[1], primekg_kg.edge_attr.size()[1])
     # edge_embedding_size = 768
 
+    # Padding
     llm_kg.x = F.pad(llm_kg.x, (0, entity_embedding_size - llm_kg.x.size()[1]), "constant", 0)
     llm_kg.edge_attr = F.pad(llm_kg.edge_attr, (0, edge_embedding_size - llm_kg.edge_attr.size()[1]), "constant", 0)
     local_kg.x = F.pad(local_kg.x, (0, entity_embedding_size - local_kg.x.size()[1]), "constant", 0)
@@ -99,6 +100,7 @@ def combine_all_relation_graphs(llm_kg, local_kg, primekg_kg, row, **kwargs):
     primekg_kg.x = F.pad(primekg_kg.x, (0, entity_embedding_size - primekg_kg.x.size()[1]), "constant", 0)
     primekg_kg.edge_attr = F.pad(primekg_kg.edge_attr, (0, edge_embedding_size - primekg_kg.edge_attr.size()[1]), "constant", 0)
 
+    # Combining
     x = torch.cat((llm_kg.x, local_kg.x, primekg_kg.x), 0)
     llm_num_nodes = llm_kg.x.size()[0]
     local_num_nodes = local_kg.x.size()[0]
