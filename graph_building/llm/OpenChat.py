@@ -55,7 +55,7 @@ def get_kg_from_llm(term, category, response=None):
     # Process the response to triples
     print(response)
     triples = parse(response)
-    # display_triplets(triples)
+    display_triplets(triples)
     data = convert_triplets_to_pyg(triples, term)
     return data, response
 
@@ -167,5 +167,5 @@ def generate_prompt_for_open_chat(term, category):
 
 if __name__ == '__main__':
     # print(ollama.invoke("Write an essey about why the sky is blue"))
-    kg = get_kg_from_llm("Broken arm", "condition")
+    kg = get_kg_from_llm("Autism", "condition")
     print(kg)

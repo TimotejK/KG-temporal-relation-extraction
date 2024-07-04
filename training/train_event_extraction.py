@@ -1,0 +1,64 @@
+import evaluate
+import numpy as np
+import torch
+from transformers import AutoTokenizer, TrainingArguments, Trainer, DataCollatorForTokenClassification
+
+from custom_datasets import combining_data
+from custom_datasets.common import split_data
+from custom_datasets.dataframe_dataset import DFDataset
+from custom_datasets.event_extraction_dataset import convert_relation_extraction_df_to_event_extraction
+from event_extraction.event_extraction_model import EventExtraction
+
+metric = evaluate.load("accuracy")
+def compute_metrics(eval_pred):
+    logits, labels = eval_pred
+    predictions = np.argmax(logits, axis=-1)
+    return metric.compute(predictions=predictions, references=labels)
+
+def train_text_extraction():
+    df = combining_data.read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
+    tokenizer = AutoTokenizer.from_pretrained("./pretrained models/PubmedBERTbase-MimicBig-EntityBERT")
+    df_events = convert_relation_extraction_df_to_event_extraction(df, tokenizer)
+    border1 = int(0.7 * len(df_events))
+    border2 = int((0.7 + 0.2) * len(df_events))
+    df_train, df_val, df_test = np.split(df_events, [border1, border2])
+
+    dataset_train = DFDataset(df_train, lambda row, args: row["tokens"], {})
+    dataset_val = DFDataset(df_val, lambda row, args: row["tokens"], {})
+
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    print(device)
+    model = EventExtraction(tokenizer)
+    model.to(device)
+    # model = MultiModalPrediction(number_of_relations=3, combine_embeddings=True)
+    data_collator = DataCollatorForTokenClassification(tokenizer=tokenizer)
+
+    training_args = TrainingArguments(
+        output_dir="./results",
+        learning_rate=0.01,
+        per_device_train_batch_size=64,
+        per_device_eval_batch_size=64,
+        auto_find_batch_size=True,
+        num_train_epochs=50,
+        weight_decay=0.001,
+        gradient_accumulation_steps=1,
+        evaluation_strategy="epoch",
+        logging_strategy="epoch",
+        push_to_hub=False
+    )
+    # "adamw_hf", "adamw_torch", "adamw_torch_fused", "adamw_apex_fused", "adamw_anyprecision" or "adafactor"
+    training_args.set_optimizer(name="adafactor")
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=dataset_train,
+        eval_dataset=dataset_val,
+        data_collator=data_collator,
+        compute_metrics=compute_metrics
+    )
+    trainer.train()
+    torch.save(model, "text-model.pt")
+    pass
+
+if __name__ == '__main__':
+    train_text_extraction()
