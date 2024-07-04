@@ -24,7 +24,7 @@ def train_text_extraction():
     df_train, df_val, df_test = np.split(df_events, [border1, border2])
 
     dataset_train = DFDataset(df_train, lambda row, args: row["tokens"], {})
-    dataset_val = DFDataset(df_val, lambda row, args: row["tokens"], {})
+    dataset_val = DFDataset(df_val, lambda row, args: {"text":row["text"], "labels":row["labels"], "tokens": row["tokens"]}, {})
 
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     print(device)
