@@ -4,7 +4,7 @@
 #SBATCH --cpus-per-task=64
 #SBATCH --mem=256G
 #SBATCH --partition=frida
-#SBATCH --account=lpt
+#SBATCH --account=lpt-phd
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-task=1

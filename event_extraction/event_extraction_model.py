@@ -8,6 +8,6 @@ class EventExtraction(nn.Module):
         self.bert = AutoModel.from_pretrained("./pretrained models/PubmedBERTbase-MimicBig-EntityBERT")
         self.tokenizer = tokenizer
 
-    def forward(self, text, labels, tokens):
+    def forward(self, tokens, labels):
         embeddings = self.bert(tokens)
         pass

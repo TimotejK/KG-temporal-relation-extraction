@@ -61,7 +61,7 @@ if __name__ == '__main__':
     if args.method == "prepare_llm_responses":
         prepare_llm_responses()
     elif args.method == "train_graph":
-        train_graph_encoder.hyper_parameter_search()
+        train_graph_encoder.train()
     elif args.method == "train_text":
         train_text_encoder.hyper_parameter_search()
     elif args.method == "precompute_local_graphs":
