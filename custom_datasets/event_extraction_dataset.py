@@ -16,7 +16,7 @@ def convert_relation_extraction_df_to_event_extraction(df, tokenizer):
         events_in_text[text].add((row["event1_start"], row["event1_end"]))
         events_in_text[text].add((row["event2_start"], row["event2_end"]))
     for text in events_in_text:
-        tokens = tokenizer.encode_plus(text)
+        tokens = tokenizer.encode_plus(text, max_length=512)
         token_ids = tokens["input_ids"]
         labels = []
         for token_idx in range(len(token_ids)):

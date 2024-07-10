@@ -1,6 +1,8 @@
 # import evaluate
+import evaluate
 import numpy as np
 import pandas as pd
+import seqeval
 import torch
 from transformers import AutoTokenizer, TrainingArguments, Trainer, DataCollatorForTokenClassification
 
@@ -36,7 +38,33 @@ def collate_fn(batch):
         labels.append(example["labels"])
     return {"tokens": data_collator(tokens), "labels": combine_labels_lists_to_tensor(labels)}
 
+def compute_metrics(p):
+    predictions, labels = p
+    raw_predictions = predictions[1]
+    mask = predictions[3]
+    pred = np.argmax(raw_predictions, axis=2)
+    encoded_labels = [[1 if x else 0 for x in a] for a in labels]
+
+    true_predictions = []
+    for predL, labelsL, maskL in zip(pred, encoded_labels, mask):
+        for p, l, m in zip(predL, labelsL, maskL):
+            if m > 0:
+                true_predictions.append(p == l)
+
+    # results = seqeval.compute(predictions=true_predictions, references=true_labels)
+    # return {
+    #     "precision": results["overall_precision"],
+    #     "recall": results["overall_recall"],
+    #     "f1": results["overall_f1"],
+    #     "accuracy": results["overall_accuracy"],
+    # }
+    metrics = {"precision": sum(true_predictions) / len(true_predictions)}
+    print(metrics)
+    return metrics
+
 def train_text_extraction():
+    seqeval = evaluate.load("seqeval")
+
     df = combining_data.read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
     df_events = convert_relation_extraction_df_to_event_extraction(df, tokenizer)
     border1 = int(0.7 * len(df_events))
