@@ -62,7 +62,7 @@ def compute_metrics(p):
     print(metrics)
     return metrics
 
-def train_text_extraction():
+def train_event_extraction():
     seqeval = evaluate.load("seqeval")
 
     df = combining_data.read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
@@ -108,4 +108,4 @@ def train_text_extraction():
     pass
 
 if __name__ == '__main__':
-    train_text_extraction()
+    train_event_extraction()

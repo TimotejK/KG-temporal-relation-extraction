@@ -13,12 +13,12 @@ class TemporalRelationAggregation(pyg_nn.MessagePassing):
         self.lin = nn.Linear(in_channels + edge_features, out_channels, bias=True)
         self.lin_self = nn.Linear(in_channels, out_channels, bias=True)
 
-    def forward(self, x, edge_index, edge_attr, edge_type):
+    def forward(self, x, edge_index, edge_attr):
         # Transform node feature matrix.
         self_x = self.lin_self(x)
-        return self_x + self.propagate(edge_index, x=x, edge_attr=edge_attr, edge_type=edge_type)
+        return self_x + self.propagate(edge_index, x=x, edge_attr=edge_attr)
 
-    def message(self, x_i, x_j, edge_attr, edge_type):
+    def message(self, x_i, x_j, edge_attr):
         # _i central node that collects information
         # _j neighbour node
         if len(x_j) > 0 and len(edge_attr) > 0:
