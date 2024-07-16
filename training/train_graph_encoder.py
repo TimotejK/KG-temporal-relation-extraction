@@ -26,8 +26,8 @@ def prepare_dataset_llm_only():
 
 def prepare_dataset_combination_graph():
     if os.path.exists("pregenerated/dataset_train_fixed.pt") and os.path.exists("pregenerated/dataset_val_fixed.pt"):
-        dataset_train = DFDataset(save_path="pregenerated/dataset_train.pt")
-        dataset_val = DFDataset(save_path="pregenerated/dataset_val.pt")
+        dataset_train = torch.load("pregenerated/dataset_train_fixed.pt")
+        dataset_val = torch.load("pregenerated/dataset_val_fixed.pt")
         return dataset_train, dataset_val
     if os.path.exists("pregenerated/dataset_train.pt") and os.path.exists("pregenerated/dataset_val.pt"):
         dataset_train = DFDataset(save_path="pregenerated/dataset_train.pt")
@@ -76,15 +76,16 @@ def compute_objective(eval_pred):
     return eval_pred["eval_accuracy"]
 
 def train():
-    # dataset_train, dataset_val = prepare_dataset_combination_graph()
-    dataset_train, dataset_val = prepare_dataset_llm_only()
-
-    model = GraphEncoder(node_size=768, edge_size=768, number_of_relations=3, dropout=0.2)
+    print("--------------------------------")
+    dataset_train, dataset_val = prepare_dataset_combination_graph()
+    # dataset_train, dataset_val = prepare_dataset_llm_only()
+    model = GraphEncoder(node_size=768, edge_size=768 + 7, number_of_relations=3, dropout=0.2)
+    # model = GraphEncoder(node_size=768, edge_size=768, number_of_relations=3, dropout=0.2)
     # model = MultiModalPrediction(number_of_relations=3, combine_embeddings=True)
 
     training_args = TrainingArguments(
         output_dir="./results",
-        learning_rate=2e-2,
+        learning_rate=2e-3,
         per_device_train_batch_size=64,
         per_device_eval_batch_size=64,
         auto_find_batch_size=True,
@@ -105,6 +106,7 @@ def train():
         compute_metrics=compute_metrics
     )
     trainer.train()
+    torch.save(model, "graph_encoder.pt")
 
 def hyper_parameter_search():
     dataset_train, dataset_val = prepare_dataset_combination_graph()

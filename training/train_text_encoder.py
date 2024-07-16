@@ -87,6 +87,7 @@ def train():
     trainer.train()
     torch.save(model, "text-model.pt")
 
+
 def hyper_parameter_search():
     dataset_train, dataset_val = prepare_dataset_no_graph()
 
