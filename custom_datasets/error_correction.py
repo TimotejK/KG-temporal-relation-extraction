@@ -17,7 +17,7 @@ def generate_edge_embedding(edge_type, edge_type_index, edge_tensor, word_embedd
         return torch.cat((edge_type_tensor, torch.zeros(3), edge_tensor))
     elif edge_type == "general_relation":
         return torch.cat((edge_type_tensor, torch.zeros(3), edge_tensor))
-    elif edge_type == "equivalent":
+    elif edge_type == "document_part":
         return torch.cat((edge_type_tensor, torch.zeros(3 + word_embedding_size)))
     raise Exception("Invalid edge type: " + edge_type)
 
@@ -61,7 +61,7 @@ def update_pregenerated_graph(graph):
             # primekg graph
             edge_type = 'general_relation'
 
-        edge_type_index = ["date", "temporal_relation", "general_relation", "equivalent"].index(edge_type)
+        edge_type_index = ["date", "temporal_relation", "general_relation", "document_part"].index(edge_type)
         edge_features.append(generate_edge_embedding(edge_type, edge_type_index, graph.edge_attr[i]))
         edge_types.append(edge_type_index)
 
@@ -72,6 +72,9 @@ def update_pregenerated_graph(graph):
     for i in range(edges_local_graph_start, edges_primekg_start):
         new_edges[0].append(document_node_index)
         new_edges[1].append(i)
+        edge_features.append(generate_edge_embedding('document_part', 3, None))
+        edge_types.append(3)
+
 
     # add new nodes
     discharge, admission = get_more_information_from_graph(graph.text, graph.event1_start, graph.event2_start, graph.event1_end, graph.event2_end)
