@@ -69,7 +69,7 @@ def update_pregenerated_graph(graph):
     graph.x = torch.cat((graph.x, sentence_embedding("Document")))
     document_node_index = len(graph.x) - 1
     new_edges = [[],[]]
-    for i in range(edges_local_graph_start, edges_primekg_start):
+    for i in range(nodes_local_graph_start, nodes_primekg_start):
         new_edges[0].append(document_node_index)
         new_edges[1].append(i)
         edge_features.append(generate_edge_embedding('document_part', 3, None))

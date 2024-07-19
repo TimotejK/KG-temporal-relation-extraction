@@ -76,13 +76,12 @@ def compute_objective(eval_pred):
     return eval_pred["eval_accuracy"]
 
 def train():
-    dataset_val = DFDataset(save_path="pregenerated/dataset_val.pt")
-    print("Fixing precomputed val dataset")
-    dataset_val = fix_precomputed_dataset(dataset_val)
-    torch.save(dataset_val, "pregenerated/dataset_val_fixed.pt")
 
-    dataset_val = torch.load("pregenerated/dataset_val_fixed.pt")
-    # dataset_train, dataset_val = prepare_dataset_combination_graph()
+    # dataset_val = torch.load("pregenerated/dataset_small_for_experimenting.pt")
+    # dataset_val.generated = [torch.load("pregenerated/primer_nepopravljenega_grafa.pt")]
+    # fix_precomputed_dataset(dataset_val)
+
+    dataset_train, dataset_val = prepare_dataset_combination_graph()
     # dataset_train, dataset_val = prepare_dataset_llm_only()
 
     model = GraphEncoder(node_size=768, edge_size=768 + 7, number_of_relations=3, dropout=0.2)
@@ -106,7 +105,7 @@ def train():
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=dataset_val,
+        train_dataset=dataset_train,
         eval_dataset=dataset_val,
         data_collator=collate_function,
         compute_metrics=compute_metrics
