@@ -7,6 +7,7 @@ from torch_geometric.data import Data
 from custom_datasets.combining_data import window_row_entity_bert
 from custom_datasets.common import add_event_tokens
 from custom_datasets.dataframe_dataset import DFDataset
+from custom_datasets.error_correction import update_pregenerated_graph
 from graph_building.graph_construction import link_to_umls
 from graph_building.graph_construction import get_subgraph
 from graph_building.llm import OpenChat
@@ -127,7 +128,9 @@ def generate_combination_graph(**kwargs):
     if llm_kg is None or local_kg is None or primekg_kg is None:
         print("Warning: no graph provided for input!")
         return None
-    return combine_all_relation_graphs(llm_kg=llm_kg, local_kg=local_kg, primekg_kg=primekg_kg, **kwargs)
+    combination_kg = combine_all_relation_graphs(llm_kg=llm_kg, local_kg=local_kg, primekg_kg=primekg_kg, **kwargs)
+    combination_kg = update_pregenerated_graph(combination_kg)
+    return combination_kg
 
 def create_knowledge_graph_dataset(dataframe, graph_generation_function, **kwargs):
     def convert_row_to_graph(row, graph_generation_function, kwargs):
