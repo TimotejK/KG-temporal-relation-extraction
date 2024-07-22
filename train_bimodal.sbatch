@@ -8,7 +8,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-task=1
-#SBATCH -o graph-train.out
+#SBATCH -o bimodal-train.out
 
 CONTAINER_IMAGE_PATH=/shared/home/timotej.knez/containers/pytorch.sqfs
 cd "${HOME}/llm-graph-construction"
