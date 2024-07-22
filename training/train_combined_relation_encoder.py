@@ -1,9 +1,23 @@
+import evaluate
+import numpy as np
 import torch
 from lightning import Trainer
+from torch_geometric.data import DataLoader
 from transformers import TrainingArguments
 
 from models.bimodal import MultiModalPrediction
+from training.train_graph_encoder import prepare_dataset_combination_graph
 
+def collate_function(examples):
+    loader = DataLoader(examples, batch_size=len(examples))
+    batch = next(iter(loader))
+    return {"data": batch, "labels": batch.y}
+
+metric = evaluate.load("accuracy")
+def compute_metrics(eval_pred):
+    logits, labels = eval_pred
+    predictions = np.argmax(logits, axis=-1)
+    return metric.compute(predictions=predictions, references=labels)
 
 def train():
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -16,6 +30,8 @@ def train():
 
     model.to(device)
     # model = MultiModalPrediction(number_of_relations=3, combine_embeddings=True)
+
+    dataset_train, dataset_val = prepare_dataset_combination_graph()
 
     training_args = TrainingArguments(
         output_dir="./results",
