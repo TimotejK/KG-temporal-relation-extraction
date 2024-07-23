@@ -1,9 +1,8 @@
 import evaluate
 import numpy as np
 import torch
-from lightning import Trainer
 from torch_geometric.data import DataLoader
-from transformers import TrainingArguments
+from transformers import TrainingArguments, Trainer
 
 from models.bimodal import MultiModalPrediction
 from training.train_graph_encoder import prepare_dataset_combination_graph
