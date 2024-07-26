@@ -24,12 +24,20 @@ def prepare_dataset_llm_only():
     dataset_val.pregenerate_and_filter()
     return dataset_train, dataset_val
 
-def prepare_dataset_combination_graph():
+def prepare_dataset_combination_graph(balanced=True, return_val2=False):
+    dataset_test = None
+    if return_val2:
+        if os.path.exists("pregenerated/dataset_test_fixed.pt"):
+            dataset_test = torch.load("pregenerated/dataset_test_fixed.pt")
     if os.path.exists("pregenerated/dataset_train_fixed.pt") and os.path.exists("pregenerated/dataset_val_fixed.pt"):
         dataset_train = torch.load("pregenerated/dataset_train_fixed.pt")
         dataset_val = torch.load("pregenerated/dataset_val_fixed.pt")
+        if not balanced:
+            dataset_train.filter_out_repeated_entries()
+            dataset_val.filter_out_repeated_entries()
         return dataset_train, dataset_val
     if os.path.exists("pregenerated/dataset_train.pt") and os.path.exists("pregenerated/dataset_val.pt"):
+        create_knowledge_graph_dataset
         dataset_train = DFDataset(save_path="pregenerated/dataset_train.pt")
         dataset_val = DFDataset(save_path="pregenerated/dataset_val.pt")
         print("Fixing precomputed train dataset")
@@ -38,6 +46,9 @@ def prepare_dataset_combination_graph():
         dataset_val = fix_precomputed_dataset(dataset_val)
         torch.save(dataset_train, "pregenerated/dataset_train_fixed.pt")
         torch.save(dataset_val, "pregenerated/dataset_val_fixed.pt")
+        if not balanced:
+            dataset_train.filter_out_repeated_entries()
+            dataset_val.filter_out_repeated_entries()
         return dataset_train, dataset_val
     df = read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
     df_train, df_val, df_test = split_data(df, oversample=True, label_name='class', train_size=0.7, val_size=0.2, split_by_documents=True)
@@ -59,6 +70,13 @@ def prepare_dataset_combination_graph():
     dataset_train.save("pregenerated/dataset_train.pt")
     dataset_val.pregenerate_and_filter()
     dataset_val.save("pregenerated/dataset_val.pt")
+
+    if not balanced:
+        dataset_train.filter_out_repeated_entries()
+        dataset_val.filter_out_repeated_entries()
+
+    if return_val2:
+        return dataset_train, dataset_val, dataset_test
     return dataset_train, dataset_val
 
 def collate_function(examples):

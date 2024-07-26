@@ -63,7 +63,7 @@ if __name__ == '__main__':
     elif args.method == "train_graph":
         train_graph_encoder.train()
     elif args.method == "train_text":
-        train_text_encoder.train()
+        train_text_encoder.hyper_parameter_search()
     elif args.method == "precompute_local_graphs":
         precompute_local_graphs()
     elif args.method == "precompute_graphs_for_analysis":

@@ -4,6 +4,7 @@ import torch
 from torch_geometric.data import DataLoader
 from transformers import TrainingArguments, Trainer
 
+from custom_datasets.combining_data import window_row_entity_bert
 from models.bimodal import MultiModalPrediction
 from training.train_graph_encoder import prepare_dataset_combination_graph
 
@@ -18,19 +19,30 @@ def compute_metrics(eval_pred):
     predictions = np.argmax(logits, axis=-1)
     return metric.compute(predictions=predictions, references=labels)
 
+def window_text(graph):
+    graph = window_row_entity_bert(graph, normalize_event_order=False)
+    if graph is None:
+        return None
+    # classification_graph["text"], classification_graph["event1_start"], classification_graph["event1_end"], \
+    # classification_graph["event2_start"], classification_graph["event2_end"] \
+    #     = add_event_tokens(row["text"], row["event1_start"], row["event1_end"], row["event2_start"], row["event2_end"])
+    return graph
+
 def train():
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
     model = MultiModalPrediction()
-    text_model = torch.load("text-model.pt")
-    graph_model = torch.load("graph_encoder.pt")
-    model.text_model = text_model
-    model.graph_model = graph_model
+    # text_model = torch.load("text-model.pt")
+    # graph_model = torch.load("graph_encoder.pt")
+    # model.text_model = text_model
+    # model.graph_model = graph_model
 
     model.to(device)
     # model = MultiModalPrediction(number_of_relations=3, combine_embeddings=True)
 
-    dataset_train, dataset_val = prepare_dataset_combination_graph()
+    # dataset_train, dataset_val = prepare_dataset_combination_graph(balanced=True)
+    dataset_train = torch.load("demo_dataset.pt")
+    dataset_train.generated = map(window_text, dataset_train.generated)
 
     training_args = TrainingArguments(
         output_dir="./results",
@@ -57,3 +69,6 @@ def train():
     )
     trainer.train()
     torch.save(model, "multimodal-model.pt")
+
+if __name__ == '__main__':
+    train()

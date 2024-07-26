@@ -11,6 +11,7 @@ class MultiModalPrediction(nn.Module):
         self.combine_embeddings = combine_embeddings
         self.number_of_relations = number_of_relations
         self.text_embedding_size = 768
+        self.reduced_text_embedding_size = 64
         self.graph_embedding_size = 50
         self.graph_model = GraphEncoder(number_of_relations=number_of_relations, output_size=self.graph_embedding_size)
         self.text_model = EntityBERTtextEncoder(number_of_relations=number_of_relations, pooling_strategy='both_events')
@@ -18,7 +19,8 @@ class MultiModalPrediction(nn.Module):
         self.criterion = nn.CrossEntropyLoss()
 
         if self.combine_embeddings:
-            self.linear = nn.Linear(self.text_embedding_size * 2 + self.graph_embedding_size * 2, self.number_of_relations).double()
+            # self.linear = nn.Linear(self.text_embedding_size * 2 + self.graph_embedding_size * 2, self.number_of_relations).double()
+            self.linear = nn.Linear(self.reduced_text_embedding_size + self.graph_embedding_size * 2, self.number_of_relations).double()
         else:
             self.linear = nn.Linear(self.number_of_relations * 2, self.number_of_relations).double()
 

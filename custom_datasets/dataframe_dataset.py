@@ -32,6 +32,19 @@ class DFDataset(Dataset):
     def load(self, path):
         self.df, self.generated = torch.load(path)
 
+    def graph_hash(self, graph):
+        return hash((graph.text, graph.event1_start, graph.event1_end, graph.event2_start, graph.event2_end))
+    def filter_out_repeated_entries(self):
+        filtered_generated = []
+        used_hashes = set()
+        for graph in self.generated:
+            hash = self.graph_hash(graph)
+            if hash not in used_hashes:
+                used_hashes.add(hash)
+                filtered_generated.append(graph)
+
+        self.generated = filtered_generated
+
     def pregenerate_and_filter(self):
         self.generated = [None for _ in self.df.iloc]
         environment = {"generated": self.generated, "df": self.df.iloc, "row_converter": self.row_converter, "args": self.args}

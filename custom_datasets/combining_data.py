@@ -355,10 +355,9 @@ def window_row_entity_bert(row, window_size=60, normalize_event_order=True):
 def normalize_event_order(df):
     new_rows = []
     for i, row in df.iterrows():
-        if normalize_event_order:
-            if row['event1_start'] > row['event2_start']:
-                row = switch_events(row)
-            new_rows.append(row)
+        if row['event1_start'] > row['event2_start']:
+            row = switch_events(row)
+        new_rows.append(row)
 
     return pd.concat(new_rows, axis=1).T
 

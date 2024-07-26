@@ -17,21 +17,17 @@ class EntityBERTtextEncoder(nn.Module):
         else:
             input_size = 768
 
-        if deeper_network:
-            self.post_layers = nn.Sequential(
-                nn.Dropout(dropout),
-                nn.Linear(input_size, 256),
-                nn.LeakyReLU(),
-                nn.Dropout(dropout),
-                nn.Linear(256, number_of_relations))
-        else:
-            self.post_layers = nn.Linear(input_size, number_of_relations)
+        self.dimension_reduction = nn.Linear(input_size, 64)
+        self.post_layers = nn.Linear(64, number_of_relations)
         self.softmax = nn.Softmax(dim=1)
 
     # def forward(self, text, event1_start, event1_end, event2_start, event2_end):
     def forward(self, data, labels=None, return_embedding=False):
         text, event1_start, event1_end, event2_start, event2_end = data.text, data.event1_start, data.event1_end, data.event2_start, data.event2_end
         text = list(text)
+        # for i in range(len(text)):
+        #     text[i], event1_start[i], event1_end[i], event2_start[i], event2_end[i] = self.add_event_tokens(text[i], int(event1_start[i]), int(event1_end[i]), int(event2_start[i]), int(event2_end[i]))
+
         tokens = self.tokenizer(text, return_tensors="pt", max_length=100, padding='max_length', truncation=True)
         tokens.to(self.EntityBert.device)
         x = self.EntityBert(**tokens)
@@ -56,7 +52,51 @@ class EntityBERTtextEncoder(nn.Module):
         if return_embedding:
             return bert_output
 
-        x = self.post_layers(bert_output)
+        x = self.dimension_reduction(bert_output)
+        x = self.post_layers(x)
         x = self.softmax(x)
         loss = self.criterion(x, labels)
         return {"loss": loss, "logits": x}
+
+    def add_event_tokens(self, text, event1_start, event1_end, event2_start, event2_end):
+        tag_start1, tag_start2, tag_end1, tag_end2 = "<e1>", "<e2>", "</e1>", "</e2>"
+        # tag_start1, tag_start2, tag_end1, tag_end2 = "<e>", "<e>", "</e>", "</e>"
+        text = text[:event1_start] + tag_start1 + text[event1_start:]
+        if event1_end >= event1_start:
+            event1_end += len(tag_start1)
+        if event2_start >= event1_start:
+            event2_start += len(tag_start1)
+        if event2_end >= event1_start:
+            event2_end += len(tag_start1)
+        if event1_start >= event1_start:
+            event1_start += len(tag_start1)
+
+        text = text[:event1_end] + tag_end1 + text[event1_end:]
+        if event1_start > event1_end:
+            event1_start += len(tag_end1)
+        if event2_start > event1_end:
+            event2_start += len(tag_end1)
+        if event2_end > event1_end:
+            event2_end += len(tag_end1)
+
+        if max(event1_start, event2_start) < min(event1_end, event2_end):
+            return text, event1_start, event1_end, event1_start, event1_end
+
+        text = text[:event2_start] + tag_start2 + text[event2_start:]
+        if event1_start >= event2_start:
+            event1_start += len(tag_start2)
+        if event1_end >= event2_start:
+            event1_end += len(tag_start2)
+        if event2_end >= event2_start:
+            event2_end += len(tag_start2)
+        if event2_start >= event2_start:
+            event2_start += len(tag_start2)
+
+        text = text[:event2_end] + tag_end2 + text[event2_end:]
+        if event1_start >= event2_end:
+            event1_start += len(tag_end2)
+        if event1_end >= event2_end:
+            event1_end += len(tag_end2)
+        if event2_start >= event2_end:
+            event2_start += len(tag_end2)
+        return text, event1_start, event1_end, event2_start, event2_end
