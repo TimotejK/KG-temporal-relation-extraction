@@ -37,7 +37,6 @@ def prepare_dataset_combination_graph(balanced=True, return_val2=False):
             dataset_val.filter_out_repeated_entries()
         return dataset_train, dataset_val
     if os.path.exists("pregenerated/dataset_train.pt") and os.path.exists("pregenerated/dataset_val.pt"):
-        create_knowledge_graph_dataset
         dataset_train = DFDataset(save_path="pregenerated/dataset_train.pt")
         dataset_val = DFDataset(save_path="pregenerated/dataset_val.pt")
         print("Fixing precomputed train dataset")

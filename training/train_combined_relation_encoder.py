@@ -33,16 +33,17 @@ def train():
 
     model = MultiModalPrediction()
     # text_model = torch.load("text-model.pt")
-    # graph_model = torch.load("graph_encoder.pt")
+    graph_model = torch.load("graph_encoder.pt")
     # model.text_model = text_model
-    # model.graph_model = graph_model
+    model.graph_model = graph_model
 
     model.to(device)
     # model = MultiModalPrediction(number_of_relations=3, combine_embeddings=True)
 
-    # dataset_train, dataset_val = prepare_dataset_combination_graph(balanced=True)
-    dataset_train = torch.load("demo_dataset.pt")
-    dataset_train.generated = map(window_text, dataset_train.generated)
+    dataset_train, dataset_val = prepare_dataset_combination_graph(balanced=True)
+    # dataset_train = torch.load("demo_dataset.pt")
+    dataset_train.generated = list(filter(lambda x: x is not None, map(window_text, dataset_train.generated)))
+    dataset_val.generated = list(filter(lambda x: x is not None, map(window_text, dataset_val.generated)))
 
     training_args = TrainingArguments(
         output_dir="./results",
@@ -68,6 +69,22 @@ def train():
         compute_metrics=compute_metrics
     )
     trainer.train()
+
+    dataset_train, dataset_val = prepare_dataset_combination_graph(balanced=False)
+    # dataset_train = torch.load("demo_dataset.pt")
+    dataset_train.generated = list(filter(lambda x: x is not None, map(window_text, dataset_train.generated)))
+    dataset_val.generated = list(filter(lambda x: x is not None, map(window_text, dataset_val.generated)))
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=dataset_train,
+        eval_dataset=dataset_val,
+        data_collator=collate_function,
+        compute_metrics=compute_metrics
+    )
+    trainer.train()
+
     torch.save(model, "multimodal-model.pt")
 
 if __name__ == '__main__':

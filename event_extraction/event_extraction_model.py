@@ -11,7 +11,7 @@ class EventExtraction(nn.Module):
         self.tokenizer = tokenizer
         self.loss = nn.CrossEntropyLoss()
 
-    def forward(self, tokens, labels):
+    def forward(self, tokens, labels=None):
         embeddings = self.bert(**tokens)
         embeddings = embeddings.last_hidden_state
         result = []
@@ -28,12 +28,16 @@ class EventExtraction(nn.Module):
                 batched_result[sample].append(logits)
                 result.append(logits)
                 # truth[sample].append(1 if labels[sample][token] else 0)
-                truth.append(1 if labels[sample][token] else 0)
+                if labels:
+                    truth.append(1 if labels[sample][token] else 0)
             # result[sample] = torch.stack(result[sample], dim=0)
             batched_result[sample] = self.softmax(torch.stack(batched_result[sample], dim=0))
         batched_result = torch.stack(batched_result, dim=0)
         result = torch.stack(result, dim=0)
         result = self.softmax(result)
-        truth = torch.tensor(truth, device=result.device)
-        output = self.loss(result, truth)
-        return {"loss": output, "results": result, "batched_result": batched_result, "truth": truth, "mask": tokens["attention_mask"]}
+        if labels:
+            truth = torch.tensor(truth, device=result.device)
+            loss = self.loss(result, truth)
+            return {"loss": loss, "results": result, "batched_result": batched_result, "truth": truth, "mask": tokens["attention_mask"]}
+        else:
+            return {"results": result, "batched_result": batched_result, "truth": truth, "mask": tokens["attention_mask"]}

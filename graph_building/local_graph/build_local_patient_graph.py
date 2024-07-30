@@ -6,6 +6,7 @@ import gensim
 import gensim.downloader
 import numpy as np
 import spacy
+from scispacy.linking import EntityLinker
 import torch
 import torch_geometric
 from torch_geometric.data import Data
@@ -111,7 +112,8 @@ def convert_df_row(row):
     if "<" in text[event1_start:event1_end] or "<" in text[event2_start:event2_end]:
         # print("opozorilo")
         pass
-    return text, event1_start, event1_end, event2_start, event2_end, torch.tensor(labels[y]), document_id
+    return text, event1_start, event1_end, event2_start, event2_end, \
+           torch.tensor(labels[y]) if labels else None, document_id
 
 def add_event_tokens(text, event1_start, event1_end, event2_start, event2_end):
     tag_start1, tag_start2, tag_end1, tag_end2 = "<e1>", "<e2>", "</e1>", "</e2>"

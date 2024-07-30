@@ -118,7 +118,7 @@ def train():
 
 
 def hyper_parameter_search():
-    dataset_train, dataset_val = prepare_dataset_no_graph()
+    dataset_train, dataset_val = prepare_dataset_no_graph(oversample=True)
 
     def model_init(trial):
         return EntityBERTtextEncoder(number_of_relations=3)

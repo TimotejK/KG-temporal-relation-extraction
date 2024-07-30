@@ -17,4 +17,4 @@ srun \
   -A lpt -p frida \
   --container-image /shared/home/timotej.knez/containers/pytorch.sqfs \
   --container-mounts "$PWD":/workspace \
-  bash -c "pip uninstall -y transformers; pip uninstall -y accelerate; pip install transformers; pip install accelerate; python main.py --method train_bimodal"
+  bash -c "python main.py --method train_bimodal"
