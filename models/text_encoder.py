@@ -49,10 +49,10 @@ class EntityBERTtextEncoder(nn.Module):
             bert_output = torch.stack(bert_output)
 
 
-        if return_embedding:
-            return bert_output
 
         x = self.dimension_reduction(bert_output)
+        if return_embedding:
+            return x
         x = self.post_layers(x)
         x = self.softmax(x)
         loss = self.criterion(x, labels)

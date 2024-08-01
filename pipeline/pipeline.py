@@ -70,7 +70,7 @@ def construct_basic_dataframe(text, pairs, document_id):
     for pair in pairs:
         row = [
             text,
-            None,
+            "BEFORE",
             pair[0][0],
             pair[0][1],
             None,
@@ -94,7 +94,17 @@ def construct_graphs(text, dataframe):
     configuration.add_inverse_relations_to_graph = True
     configuration.remove_target_relation = False
     configuration.use_realistic_graph = True
-    graph = construct_graph_from_text_only(dataframe, configuration, dataset_type="train")
+    local_kg = construct_graph_from_text_only(dataframe, configuration, dataset_type="train")
+
+    llm_kg = generate_relation_graph_llm(**kwargs)
+    local_kg = generate_local_graph_for_event(**kwargs)
+    primekg_kg = generate_relation_graph_primekg(**kwargs)
+    if llm_kg is None or local_kg is None or primekg_kg is None:
+        print("Warning: no graph provided for input!")
+        return None
+    combination_kg = combine_all_relation_graphs(llm_kg=llm_kg, local_kg=local_kg, primekg_kg=primekg_kg, **kwargs)
+    combination_kg = update_pregenerated_graph(combination_kg)
+
     print(graph)
 
 def predict_temporal_relation(pair):

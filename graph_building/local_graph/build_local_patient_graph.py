@@ -113,7 +113,7 @@ def convert_df_row(row):
         # print("opozorilo")
         pass
     return text, event1_start, event1_end, event2_start, event2_end, \
-           torch.tensor(labels[y]) if labels else None, document_id
+           torch.tensor(labels[y]) if y else None, document_id
 
 def add_event_tokens(text, event1_start, event1_end, event2_start, event2_end):
     tag_start1, tag_start2, tag_end1, tag_end2 = "<e1>", "<e2>", "</e1>", "</e2>"
@@ -285,12 +285,12 @@ def generate_graph_for_gnn(graph, entity1, entity2, y, text_features=None, use_e
     # Text features
     if text_features is not None:
         text, event1_start, event1_end, event2_start, event2_end, _, document_id = text_features
-        data = Data(x=x, edge_index=edge_index, edge_type=edge_type, y=torch.tensor([y]),
+        data = Data(x=x, edge_index=edge_index, edge_type=edge_type, y=torch.tensor([y]) if y is not None else None,
                     event1_index=index1, event2_index=index2, rule_based_prediction=rule_based_prediction,
                     text=text, event1_start=event1_start, event1_end=event1_end, event2_start=event2_start, event2_end=event2_end, document_id=document_id,
                     edge_attr=torch.tensor(edge_attr))
     else:
-        data = Data(x=x, edge_index=edge_index, edge_type=edge_type, y=torch.tensor([y]),
+        data = Data(x=x, edge_index=edge_index, edge_type=edge_type, y=torch.tensor([y]) if y is not None else None,
                     event1_index=index1, event2_index=index2, rule_based_prediction=rule_based_prediction)
     return data
 
@@ -359,7 +359,7 @@ def create_graph(iteration):
     if configuration.remove_target_relation:
         active_graph = filter_knowledge_graph(active_graph, [event1, event2])
     subgraph = generate_graph_for_gnn(active_graph, event1, event2,
-                                      labels[row["class"]], text_features, use_entire_graph=configuration.use_entire_graph)
+                                      labels[row["class"]] if row["class"] else None, text_features, use_entire_graph=configuration.use_entire_graph)
     if len(subgraph.x) == 0:
         return None
     return subgraph
@@ -415,7 +415,8 @@ def construct_graph_from_text_only(full_text_df, configuration, dataset_type="")
     test_df = combining_data.add_inverse_relations(full_text_df)
     test_df = combining_data.add_transitive_relations(test_df)
     test_df = combining_data.window_for_entity_bert(test_df, window_size=60, normalize_event_order=True)
-    test_df = test_df.drop_duplicates().reset_index()
+    test_df = test_df.drop_duplicates().reset_index(drop=True)
+    # TODO drop self loops
     test_dataset = KnowledgeGraphDataset([], test_df, configuration=configuration)
     dataLoader_test = torch_geometric.loader.DataLoader(test_dataset, batch_size=batch_size)
 

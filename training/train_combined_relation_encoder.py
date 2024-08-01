@@ -30,10 +30,11 @@ def window_text(graph):
 
 def train():
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    # device = "cpu"
 
     model = MultiModalPrediction()
     # text_model = torch.load("text-model.pt")
-    graph_model = torch.load("graph_encoder.pt")
+    graph_model = torch.load("graph_encoder.pt", map_location=device)
     # model.text_model = text_model
     model.graph_model = graph_model
 
@@ -41,6 +42,8 @@ def train():
     # model = MultiModalPrediction(number_of_relations=3, combine_embeddings=True)
 
     dataset_train, dataset_val = prepare_dataset_combination_graph(balanced=True)
+    # dataset_train = torch.load("pregenerated/dataset_small_for_experimenting.pt", map_location=device)
+    # dataset_val = torch.load("pregenerated/dataset_small_for_experimenting.pt", map_location=device)
     # dataset_train = torch.load("demo_dataset.pt")
     dataset_train.generated = list(filter(lambda x: x is not None, map(window_text, dataset_train.generated)))
     dataset_val.generated = list(filter(lambda x: x is not None, map(window_text, dataset_val.generated)))
