@@ -5,7 +5,9 @@ from transformers import AutoTokenizer
 import numpy as np
 import nltk.data
 
-from custom_datasets.common import Configuration
+from custom_datasets.common import Configuration, get_configuration_for_building_local_graph
+from custom_datasets.knowledge_graph_dataset import generate_relation_graph_llm, generate_relation_graph_primekg, \
+    generate_local_graph_for_event, create_knowledge_graph_dataset, generate_combination_graph
 from graph_building.local_graph.build_local_patient_graph import construct_graph_from_text_only
 
 def extract_events(text):
@@ -88,27 +90,17 @@ def construct_basic_dataframe(text, pairs, document_id):
     pass
 
 
-def construct_graphs(text, dataframe):
-    # TODO
-    configuration = Configuration()
-    configuration.add_inverse_relations_to_graph = True
-    configuration.remove_target_relation = False
-    configuration.use_realistic_graph = True
+def construct_dataset_with_graphs(text, dataframe):
+    configuration = get_configuration_for_building_local_graph()
     local_kg = construct_graph_from_text_only(dataframe, configuration, dataset_type="train")
+    dataset = create_knowledge_graph_dataset(dataframe, generate_combination_graph, configuration=configuration,
+                                   local_graph=local_kg, cache_only=True)
+    print(dataset)
+    return dataset
 
-    llm_kg = generate_relation_graph_llm(**kwargs)
-    local_kg = generate_local_graph_for_event(**kwargs)
-    primekg_kg = generate_relation_graph_primekg(**kwargs)
-    if llm_kg is None or local_kg is None or primekg_kg is None:
-        print("Warning: no graph provided for input!")
-        return None
-    combination_kg = combine_all_relation_graphs(llm_kg=llm_kg, local_kg=local_kg, primekg_kg=primekg_kg, **kwargs)
-    combination_kg = update_pregenerated_graph(combination_kg)
-
-    print(graph)
-
-def predict_temporal_relation(pair):
+def predict_temporal_relations(dataset):
     # TODO
+
     pass
 
 def analyze_document(text):
@@ -117,7 +109,8 @@ def analyze_document(text):
     event_pairs = generate_event_pairs(text, events)
     print(event_pairs)
     dataframe = construct_basic_dataframe(text, event_pairs, 0)
-    construct_graphs(text, dataframe)
+    dataset = construct_dataset_with_graphs(text, dataframe)
+    predict_temporal_relations(dataset)
     pass
 
 if __name__ == '__main__':
