@@ -129,7 +129,7 @@ def generate_combination_graph(**kwargs):
         print("Warning: no graph provided for input!")
         return None
     combination_kg = combine_all_relation_graphs(llm_kg=llm_kg, local_kg=local_kg, primekg_kg=primekg_kg, **kwargs)
-    combination_kg = update_pregenerated_graph(combination_kg)
+    combination_kg = update_pregenerated_graph(combination_kg, kwargs["row"])
     return combination_kg
 
 def create_knowledge_graph_dataset(dataframe, graph_generation_function, **kwargs):

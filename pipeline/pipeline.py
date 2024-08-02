@@ -94,7 +94,8 @@ def construct_dataset_with_graphs(text, dataframe):
     configuration = get_configuration_for_building_local_graph()
     local_kg = construct_graph_from_text_only(dataframe, configuration, dataset_type="train")
     dataset = create_knowledge_graph_dataset(dataframe, generate_combination_graph, configuration=configuration,
-                                   local_graph=local_kg, cache_only=True)
+                                   local_graph=local_kg, cache_only=False)
+    dataset.pregenerate_and_filter()
     print(dataset)
     return dataset
 
