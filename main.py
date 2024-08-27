@@ -4,6 +4,7 @@ import concurrent.futures
 import torch
 import sys
 
+import evaluation.evaluate_relation_prediction
 from custom_datasets.combining_data import read_i2b2
 from custom_datasets.common import Configuration, lock
 from custom_datasets.knowledge_graph_dataset import get_llm_responses_only, generate_relation_graph_llm, \
@@ -70,3 +71,5 @@ if __name__ == '__main__':
         precompute_graphs_for_analysis()
     elif args.method == "train_bimodal":
         train_combined_relation_encoder.train()
+    elif args.method == "eval":
+        evaluation.evaluate_relation_prediction.eval()

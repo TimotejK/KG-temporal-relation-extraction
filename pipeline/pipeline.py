@@ -1,6 +1,7 @@
 import nltk as nltk
 import pandas as pd
 import torch
+from torch_geometric.data import DataLoader
 from transformers import AutoTokenizer
 import numpy as np
 import nltk.data
@@ -99,9 +100,23 @@ def construct_dataset_with_graphs(text, dataframe):
     print(dataset)
     return dataset
 
+relation_types = ["BEFORE", "AFTER", "OVERLAP"]
 def predict_temporal_relations(dataset):
+    human_readable_predictions = []
     # TODO
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    model = torch.load("multimodal-model.pt", map_location=device)
 
+    loader = DataLoader(dataset, batch_size=16)
+    for batch in loader:
+        batch.to(device)
+        labels = batch.y
+        result = model(data=batch, labels=labels)
+        predictions = np.argmax(result["predictions"].cpu().detach().numpy(), axis=1)
+        for i in range(len(batch["text"])):
+            event1 = batch["text"][i][batch["event1_start"][i]:batch["event1_end"][i]]
+            event2 = batch["text"][i][batch["event2_start"][i]:batch["event2_end"][i]]
+            human_readable_predictions.append((event1, relation_types[predictions[i]], event2))
     pass
 
 def analyze_document(text):

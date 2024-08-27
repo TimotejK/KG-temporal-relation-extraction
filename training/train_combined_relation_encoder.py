@@ -6,6 +6,7 @@ from transformers import TrainingArguments, Trainer
 
 from custom_datasets.combining_data import window_row_entity_bert
 from models.bimodal import MultiModalPrediction
+from models.text_encoder import EntityBERTtextEncoder
 from training.train_graph_encoder import prepare_dataset_combination_graph
 
 def collate_function(examples):
@@ -32,11 +33,15 @@ def train():
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     # device = "cpu"
 
-    model = MultiModalPrediction()
-    # text_model = torch.load("text-model.pt")
-    graph_model = torch.load("graph_encoder.pt", map_location=device)
-    # model.text_model = text_model
-    model.graph_model = graph_model
+    # model = MultiModalPrediction()
+    # # text_model = torch.load("text-model.pt")
+    # graph_model = torch.load("graph_encoder.pt", map_location=device)
+    # # model.text_model = text_model
+    # model.graph_model = graph_model
+    # model = torch.load("multimodal-model-balanced.pt", map_location=device)
+
+    model = torch.load("text-model-balanced.pt")
+    # model = EntityBERTtextEncoder()
 
     model.to(device)
     # model = MultiModalPrediction(number_of_relations=3, combine_embeddings=True)
@@ -50,12 +55,12 @@ def train():
 
     training_args = TrainingArguments(
         output_dir="./results",
-        learning_rate=0.01,
-        per_device_train_batch_size=64,
-        per_device_eval_batch_size=64,
+        learning_rate=0.001,
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=16,
         auto_find_batch_size=True,
         num_train_epochs=50,
-        weight_decay=0.001,
+        weight_decay=0.0001,
         gradient_accumulation_steps=1,
         evaluation_strategy="epoch",
         logging_strategy="epoch",
@@ -73,22 +78,9 @@ def train():
     )
     trainer.train()
 
-    dataset_train, dataset_val = prepare_dataset_combination_graph(balanced=False)
-    # dataset_train = torch.load("demo_dataset.pt")
-    dataset_train.generated = list(filter(lambda x: x is not None, map(window_text, dataset_train.generated)))
-    dataset_val.generated = list(filter(lambda x: x is not None, map(window_text, dataset_val.generated)))
+    # torch.save(model, "text-model-balanced.pt")
 
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=dataset_train,
-        eval_dataset=dataset_val,
-        data_collator=collate_function,
-        compute_metrics=compute_metrics
-    )
-    trainer.train()
-
-    torch.save(model, "multimodal-model.pt")
+    torch.save(model, "text-model-2.pt")
 
 if __name__ == '__main__':
     train()

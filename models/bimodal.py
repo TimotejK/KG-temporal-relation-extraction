@@ -17,6 +17,7 @@ class MultiModalPrediction(nn.Module):
         self.text_model = EntityBERTtextEncoder(number_of_relations=number_of_relations, pooling_strategy='both_events')
         self.pooling_strategy = self.text_model.pooling_strategy
         self.criterion = nn.CrossEntropyLoss()
+        self.softmax = nn.Softmax(dim=1)
 
         if self.combine_embeddings:
             # self.linear = nn.Linear(self.text_embedding_size * 2 + self.graph_embedding_size * 2, self.number_of_relations).double()
@@ -30,6 +31,7 @@ class MultiModalPrediction(nn.Module):
         concatenated = torch.cat((graph_prediction, text_prediction), 1)
         concatenated = concatenated.double()
         x = self.linear(concatenated)
+        x = self.softmax(x)
         loss = self.criterion(x, labels)
         return {"loss": loss, "predictions": x}
     pass
