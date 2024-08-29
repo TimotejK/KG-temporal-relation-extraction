@@ -17,5 +17,5 @@ scp -r precompute.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-
 scp -r precompute_graphs_for_analysis.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 rsync -av -r pepeline timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 rsync -av -r pepeline timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
-rsync -av -r evaluation timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
+rsync -av -r pipeline timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 rsync -av -r eval.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction

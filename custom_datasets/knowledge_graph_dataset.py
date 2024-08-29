@@ -121,6 +121,18 @@ def combine_all_relation_graphs(llm_kg, local_kg, primekg_kg, row, **kwargs):
     return Data(x=x, y=torch.tensor([relation_types.index(target)]), edge_index=edge_index, edge_attr=edge_attr,
                 event1_index=llm_kg.event1_index, event2_index=llm_kg.event2_index)
 
+
+def combine_fast_combination_graphs_fixed(llm_kg, local_kg):
+    pass
+
+def generate_fast_combination_graph(**kwargs):
+    llm_kg = generate_relation_graph_llm(**kwargs)
+    local_kg = generate_local_graph_for_event(**kwargs)
+    if llm_kg is None or local_kg is None:
+        print("Warning: no graph provided for input!")
+        return None
+
+
 def generate_combination_graph(**kwargs):
     llm_kg = generate_relation_graph_llm(**kwargs)
     local_kg = generate_local_graph_for_event(**kwargs)

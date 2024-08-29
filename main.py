@@ -10,6 +10,7 @@ from custom_datasets.common import Configuration, lock
 from custom_datasets.knowledge_graph_dataset import get_llm_responses_only, generate_relation_graph_llm, \
     generate_relation_graph_primekg
 from graph_building.local_graph.build_local_patient_graph import construct_graph_from_text_only
+from pipeline import pipeline
 from training import train_text_encoder, train_graph_encoder, train_combined_relation_encoder
 from training.train_graph_encoder import hyper_parameter_search, train
 
@@ -73,3 +74,5 @@ if __name__ == '__main__':
         train_combined_relation_encoder.train()
     elif args.method == "eval":
         evaluation.evaluate_relation_prediction.eval()
+    elif args.method == "eval_pipeline":
+        pipeline.run_pipeline()

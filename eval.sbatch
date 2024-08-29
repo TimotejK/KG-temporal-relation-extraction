@@ -17,4 +17,4 @@ srun \
   -A lpt -p frida \
   --container-image /shared/home/timotej.knez/containers/pytorch.sqfs \
   --container-mounts "$PWD":/workspace \
-  bash -c "python main.py --method eval"
+  bash -c "python main.py --method eval_pipeline"
