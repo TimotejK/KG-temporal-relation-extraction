@@ -12,7 +12,8 @@ from custom_datasets.combining_data import read_i2b2
 from custom_datasets.common import Configuration, get_configuration_for_building_local_graph
 from custom_datasets.error_correction import generate_edge_embedding
 from custom_datasets.knowledge_graph_dataset import generate_relation_graph_llm, generate_relation_graph_primekg, \
-    generate_local_graph_for_event, create_knowledge_graph_dataset, generate_combination_graph
+    generate_local_graph_for_event, create_knowledge_graph_dataset, generate_combination_graph, \
+    generate_fast_combination_graph
 from graph_building import node_embeddings
 from graph_building.local_graph.build_local_patient_graph import construct_graph_from_text_only
 
@@ -107,7 +108,7 @@ def construct_basic_dataframe(text, pairs, document_id):
 def construct_dataset_with_graphs(text, dataframe, patient_id):
     configuration = get_configuration_for_building_local_graph()
     local_kg = construct_graph_from_text_only(dataframe, configuration, dataset_type="train")
-    dataset = create_knowledge_graph_dataset(dataframe, generate_combination_graph, configuration=configuration,
+    dataset = create_knowledge_graph_dataset(dataframe, generate_fast_combination_graph, configuration=configuration,
                                    local_graph=local_kg, cache_only=False)
     dataset.pregenerate_and_filter()
     dataset.generated = list(map(lambda g: add_stored_data_to_kg(g, patient_id, g.text[g.event1_start: g.event1_end],
@@ -118,7 +119,6 @@ def construct_dataset_with_graphs(text, dataframe, patient_id):
 relation_types = ["BEFORE", "AFTER", "OVERLAP"]
 def predict_temporal_relations(dataset):
     human_readable_predictions = []
-    # TODO
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     model = torch.load("multimodal-model.pt", map_location=device)
 
@@ -224,15 +224,10 @@ def analyze_document(text, patient_id):
     events = extract_events(text)
     print("Events:")
     print(events)
-    # TODO remove cache
     event_pairs = generate_event_pairs(text, events)
     dataframe = construct_basic_dataframe(text, event_pairs, 0)
-    # torch.save(dataframe, "zacasno_izracunan_datagrame.pt")
-    # dataframe = torch.load("zacasno_izracunan_datagrame.pt")
     dataset = construct_dataset_with_graphs(text, dataframe, patient_id)
-    # torch.save(dataframe, "zacasno_izracunan_dataset.pt")
     relations = predict_temporal_relations(dataset)
-    print("Relations:")
     return relations
 
 def run_pipeline():
@@ -246,6 +241,7 @@ def run_pipeline():
             f.write(str(true_relations[i]) + "\n")
             f.write(str(predicted_relations[i]) + "\n")
         f.flush()
+        save_to_common_graph(predicted_relations, patient_id)
         patient_id += 1
     f.flush()
     f.close()

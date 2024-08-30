@@ -4,14 +4,17 @@ import torch
 import torch.nn.functional as F
 from torch_geometric.data import Data
 
+import date2vec
 from custom_datasets.combining_data import window_row_entity_bert
 from custom_datasets.common import add_event_tokens
 from custom_datasets.dataframe_dataset import DFDataset
-from custom_datasets.error_correction import update_pregenerated_graph
+from custom_datasets.error_correction import update_pregenerated_graph, generate_edge_embedding, \
+    get_more_information_from_graph
 from graph_building.graph_construction import link_to_umls
 from graph_building.graph_construction import get_subgraph
 from graph_building.llm import OpenChat
 from graph_building.local_graph.build_local_patient_graph import create_graph
+from graph_building.node_embeddings import sentence_embedding
 
 relation_types = ["BEFORE", "AFTER", "OVERLAP"]
 def combine_graphs(graph1, graph2, target):
@@ -122,8 +125,119 @@ def combine_all_relation_graphs(llm_kg, local_kg, primekg_kg, row, **kwargs):
                 event1_index=llm_kg.event1_index, event2_index=llm_kg.event2_index)
 
 
-def combine_fast_combination_graphs_fixed(llm_kg, local_kg):
-    pass
+def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None):
+    global relation_types
+    target = row["class"]
+    x = None
+    edge_index_list = [[],[]]
+    edge_types = []
+    edge_features = []
+    node_index_offset = 0
+    event1_node_index = -1
+    event2_node_index = -1
+    if llm_kg is not None:
+        if x is not None:
+            x = torch.cat((x, llm_kg.x), 0)
+        else:
+            x = llm_kg.x
+        for i in range(len(llm_kg.edge_attr)):
+            edge_type = 'general_relation'
+            edge_type_index = ["date", "temporal_relation", "general_relation", "document_part"].index(edge_type)
+            edge_features.append(generate_edge_embedding(edge_type, edge_type_index, llm_kg.edge_attr[i]))
+            edge_types.append(edge_type_index)
+            edge_index_list[0].append(node_index_offset + llm_kg.edge_index[0][i])
+            edge_index_list[1].append(node_index_offset + llm_kg.edge_index[1][i])
+        if event1_node_index < 0:
+            event1_node_index = llm_kg.event1_index
+            event2_node_index = llm_kg.event2_index
+        else:
+            # we create a connection between event nodes
+            edge_index_list[0].append(llm_kg.event1_index)
+            edge_index_list[1].append(event1_node_index)
+            edge_index_list[0].append(llm_kg.event2_index)
+            edge_index_list[1].append(event2_node_index)
+        node_index_offset = len(x)
+
+    if local_kg is not None:
+        if x is not None:
+            x = torch.cat((x, local_kg.x), 0)
+        else:
+            x = local_kg.x
+        for i in range(len(local_kg.edge_attr)):
+            edge_type = 'temporal_relation'
+            edge_type_index = ["date", "temporal_relation", "general_relation", "document_part"].index(edge_type)
+            edge_features.append(generate_edge_embedding(edge_type, edge_type_index, local_kg.edge_attr[i]))
+            edge_types.append(edge_type_index)
+            edge_index_list[0].append(node_index_offset + local_kg.edge_index[0][i])
+            edge_index_list[1].append(node_index_offset + local_kg.edge_index[1][i])
+        if event1_node_index < 0:
+            event1_node_index = local_kg.event1_index
+            event2_node_index = local_kg.event2_index
+        else:
+            # we create a connection between event nodes
+            edge_index_list[0].append(local_kg.event1_index)
+            edge_index_list[1].append(event1_node_index)
+            edge_index_list[0].append(local_kg.event2_index)
+            edge_index_list[1].append(event2_node_index)
+
+            # add document node connected to all nodes from the document
+            x = torch.cat((x, sentence_embedding("Document")))
+            document_node_index = len(x) - 1
+            for i in range(len(local_kg.x)):
+                edge_index_list[0].append(document_node_index)
+                edge_index_list[1].append(i + node_index_offset)
+                edge_features.append(generate_edge_embedding('document_part', 3, None))
+                edge_types.append(3)
+
+        node_index_offset = len(x)
+
+    if prime_kg is not None:
+        if x is not None:
+            x = torch.cat((x, prime_kg.x), 0)
+        else:
+            x = prime_kg.x
+        for i in range(len(local_kg.edge_attr)):
+            edge_type = 'general_relation'
+            edge_type_index = ["date", "temporal_relation", "general_relation", "document_part"].index(edge_type)
+            edge_features.append(generate_edge_embedding(edge_type, edge_type_index, local_kg.edge_attr[i]))
+            edge_types.append(edge_type_index)
+            edge_index_list[0].append(node_index_offset + prime_kg.edge_index[0][i])
+            edge_index_list[1].append(node_index_offset + prime_kg.edge_index[1][i])
+        if event1_node_index < 0:
+            event1_node_index = prime_kg.event1_index
+            event2_node_index = prime_kg.event2_index
+        else:
+            # we create a connection between event nodes
+            edge_index_list[0].append(prime_kg.event1_index)
+            edge_index_list[1].append(event1_node_index)
+            edge_index_list[0].append(prime_kg.event2_index)
+            edge_index_list[1].append(event2_node_index)
+        node_index_offset = len(x)
+
+    # add new nodes for dates
+    dct, admission = get_more_information_from_graph(row.text, row.event1_start, row.event2_start,
+                                                           row.event1_end, row.event2_end)
+    if dct[0] > 0:
+        x = torch.cat((x, sentence_embedding("Admission"), sentence_embedding("Discharge")))
+        edge_index_list[0].append(document_node_index)
+        edge_index_list[1].append(len(x) - 2)
+        edge_index_list[0].append(document_node_index)
+        edge_index_list[1].append(len(x) - 1)
+        edge_features.append(
+            generate_edge_embedding('date', 0, date2vec.date_embedding.compute_date_embedding(*admission)))
+        edge_types.append(0)
+        edge_features.append(
+            generate_edge_embedding('date', 0, date2vec.date_embedding.compute_date_embedding(*discharge)))
+        edge_types.append(0)
+
+    graph = Data(x=x,
+                 y=torch.tensor([relation_types.index(target)]),
+                 edge_index=torch.tensor(edge_index_list),
+                 edge_attr=torch.cat([x.reshape(-1, 1) for x in edge_features], dim=1).T,
+                 edge_type=torch.tensor(edge_types),
+                 event1_index=event1_node_index,
+                 event2_index=event2_node_index)
+    return graph
 
 def generate_fast_combination_graph(**kwargs):
     llm_kg = generate_relation_graph_llm(**kwargs)
@@ -131,6 +245,8 @@ def generate_fast_combination_graph(**kwargs):
     if llm_kg is None or local_kg is None:
         print("Warning: no graph provided for input!")
         return None
+    combination_graph = combine_fast_combination_graphs_fixed(row=kwargs["row"], llm_kg=llm_kg, local_kg=local_kg)
+    return combination_graph
 
 
 def generate_combination_graph(**kwargs):
