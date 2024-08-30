@@ -125,7 +125,7 @@ def combine_all_relation_graphs(llm_kg, local_kg, primekg_kg, row, **kwargs):
                 event1_index=llm_kg.event1_index, event2_index=llm_kg.event2_index)
 
 
-def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None):
+def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None, insert_time_nodes=False):
     global relation_types
     target = row["class"]
     x = None
@@ -215,20 +215,21 @@ def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None):
         node_index_offset = len(x)
 
     # add new nodes for dates
-    dct, admission = get_more_information_from_graph(row.text, row.event1_start, row.event2_start,
-                                                           row.event1_end, row.event2_end)
-    if dct[0] > 0:
-        x = torch.cat((x, sentence_embedding("Admission"), sentence_embedding("Discharge")))
-        edge_index_list[0].append(document_node_index)
-        edge_index_list[1].append(len(x) - 2)
-        edge_index_list[0].append(document_node_index)
-        edge_index_list[1].append(len(x) - 1)
-        edge_features.append(
-            generate_edge_embedding('date', 0, date2vec.date_embedding.compute_date_embedding(*admission)))
-        edge_types.append(0)
-        edge_features.append(
-            generate_edge_embedding('date', 0, date2vec.date_embedding.compute_date_embedding(*discharge)))
-        edge_types.append(0)
+    if insert_time_nodes:
+        dct, admission = get_more_information_from_graph(row.text, row.event1_start, row.event2_start,
+                                                               row.event1_end, row.event2_end)
+        if dct[0] > 0:
+            x = torch.cat((x, sentence_embedding("Admission"), sentence_embedding("Discharge")))
+            edge_index_list[0].append(document_node_index)
+            edge_index_list[1].append(len(x) - 2)
+            edge_index_list[0].append(document_node_index)
+            edge_index_list[1].append(len(x) - 1)
+            edge_features.append(
+                generate_edge_embedding('date', 0, date2vec.date_embedding.compute_date_embedding(*admission)))
+            edge_types.append(0)
+            edge_features.append(
+                generate_edge_embedding('date', 0, date2vec.date_embedding.compute_date_embedding(*discharge)))
+            edge_types.append(0)
 
     graph = Data(x=x,
                  y=torch.tensor([relation_types.index(target)]),
@@ -245,7 +246,7 @@ def generate_fast_combination_graph(**kwargs):
     if llm_kg is None or local_kg is None:
         print("Warning: no graph provided for input!")
         return None
-    combination_graph = combine_fast_combination_graphs_fixed(row=kwargs["row"], llm_kg=llm_kg, local_kg=local_kg)
+    combination_graph = combine_fast_combination_graphs_fixed(row=kwargs["row"], llm_kg=llm_kg, local_kg=local_kg, **kwargs)
     return combination_graph
 
 
@@ -271,6 +272,8 @@ def create_knowledge_graph_dataset(dataframe, graph_generation_function, **kwarg
             return None
         classification_graph["text"], classification_graph["event1_start"], classification_graph["event1_end"], classification_graph["event2_start"], classification_graph["event2_end"] \
             = add_event_tokens(row["text"], row["event1_start"], row["event1_end"], row["event2_start"], row["event2_end"])
+        if "graph_post_processing" in kwargs:
+            classification_graph = kwargs["graph_post_processing"](classification_graph, **kwargs)
         return classification_graph
 
     return DFDataset(dataframe, lambda row, args: convert_row_to_graph(row, graph_generation_function, args), kwargs)
