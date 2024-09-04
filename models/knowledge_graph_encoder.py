@@ -57,6 +57,8 @@ class GraphEncoder(nn.Module):
         return TemporalRelationAggregation(node_size, output_node_size, edge_size)
 
     def forward(self, data, labels, return_embedding=False):
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        data.to(device)
         # if not self.training:
         #     return nn.functional.one_hot(data.rule_based_prediction).double()
         x, edge_index, batch, event1, event2, edge_attr = data.x, data.edge_index, data.batch, data.event1_index, data.event2_index, data.edge_attr

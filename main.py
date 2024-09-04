@@ -11,7 +11,8 @@ from custom_datasets.knowledge_graph_dataset import get_llm_responses_only, gene
     generate_relation_graph_primekg
 from graph_building.local_graph.build_local_patient_graph import construct_graph_from_text_only
 from pipeline import pipeline
-from training import train_text_encoder, train_graph_encoder, train_combined_relation_encoder
+from training import train_text_encoder, train_graph_encoder, train_combined_relation_encoder, \
+    train_and_evaluate_relation_extraction
 from training.train_graph_encoder import hyper_parameter_search, train
 
 def prepare_llm_responses():
@@ -66,6 +67,8 @@ if __name__ == '__main__':
         train_graph_encoder.train()
     elif args.method == "train_text":
         train_text_encoder.hyper_parameter_search()
+    elif args.method == "train_all":
+        train_and_evaluate_relation_extraction.train()
     elif args.method == "precompute_local_graphs":
         precompute_local_graphs()
     elif args.method == "precompute_graphs_for_analysis":

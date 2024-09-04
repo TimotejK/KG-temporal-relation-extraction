@@ -125,7 +125,7 @@ def combine_all_relation_graphs(llm_kg, local_kg, primekg_kg, row, **kwargs):
                 event1_index=llm_kg.event1_index, event2_index=llm_kg.event2_index)
 
 
-def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None, insert_time_nodes=False):
+def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None, insert_time_nodes=False, **kwargs):
     global relation_types
     target = row["class"]
     x = None
@@ -156,6 +156,10 @@ def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None, 
             edge_index_list[1].append(event1_node_index)
             edge_index_list[0].append(llm_kg.event2_index)
             edge_index_list[1].append(event2_node_index)
+            edge_features.append(generate_edge_embedding('temporal_relation', 1, torch.tensor([0,0,1])))
+            edge_features.append(generate_edge_embedding('temporal_relation', 1, torch.tensor([0,0,1])))
+            edge_types.append(1)
+            edge_types.append(1)
         node_index_offset = len(x)
 
     if local_kg is not None:
@@ -179,6 +183,10 @@ def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None, 
             edge_index_list[1].append(event1_node_index)
             edge_index_list[0].append(local_kg.event2_index)
             edge_index_list[1].append(event2_node_index)
+            edge_features.append(generate_edge_embedding('temporal_relation', 1, torch.tensor([0, 0, 1])))
+            edge_features.append(generate_edge_embedding('temporal_relation', 1, torch.tensor([0, 0, 1])))
+            edge_types.append(1)
+            edge_types.append(1)
 
             # add document node connected to all nodes from the document
             x = torch.cat((x, sentence_embedding("Document")))
@@ -212,6 +220,10 @@ def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None, 
             edge_index_list[1].append(event1_node_index)
             edge_index_list[0].append(prime_kg.event2_index)
             edge_index_list[1].append(event2_node_index)
+            edge_features.append(generate_edge_embedding('temporal_relation', 1, torch.tensor([0, 0, 1])))
+            edge_features.append(generate_edge_embedding('temporal_relation', 1, torch.tensor([0, 0, 1])))
+            edge_types.append(1)
+            edge_types.append(1)
         node_index_offset = len(x)
 
     # add new nodes for dates
@@ -246,7 +258,7 @@ def generate_fast_combination_graph(**kwargs):
     if llm_kg is None or local_kg is None:
         print("Warning: no graph provided for input!")
         return None
-    combination_graph = combine_fast_combination_graphs_fixed(row=kwargs["row"], llm_kg=llm_kg, local_kg=local_kg, **kwargs)
+    combination_graph = combine_fast_combination_graphs_fixed(llm_kg=llm_kg, local_kg=local_kg, **kwargs)
     return combination_graph
 
 

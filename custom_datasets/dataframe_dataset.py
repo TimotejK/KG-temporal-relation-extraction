@@ -1,6 +1,8 @@
 import concurrent.futures
+import random
 import threading
 
+import numpy as np
 import torch
 from torch.utils.data import Dataset
 
@@ -34,6 +36,36 @@ class DFDataset(Dataset):
 
     def graph_hash(self, graph):
         return hash((graph.text, graph.event1_start, graph.event1_end, graph.event2_start, graph.event2_end))
+
+    def split_generated(self):
+        number_of_groups = max(map(lambda x: x.y, self.generated)) + 1
+        groups = [[] for _ in range(number_of_groups)]
+        for g in self.generated:
+            groups[g.y].append(g)
+        return groups
+
+    def oversample_list(self, list, size):
+        new_list = []
+        while len(new_list) < size:
+            random.shuffle(list)
+            new_list += list
+        return new_list[:size]
+
+    def oversample_pregenerated(self):
+        if self.generated is None:
+            print("Error: data needs to be pregenerated")
+            return
+        groups = self.split_generated()
+        oversampled = []
+        number_of_samples = max(map(len, groups))
+        for i in range(len(groups)):
+            oversampled += self.oversample_list(groups[i], number_of_samples)
+        random.shuffle(oversampled)
+        self.generated = oversampled
+
+    def to_device(self, device):
+        for i in range(len(self.generated)):
+            self.generated[i].to(device)
     def filter_out_repeated_entries(self):
         filtered_generated = []
         used_hashes = set()

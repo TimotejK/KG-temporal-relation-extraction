@@ -12,10 +12,9 @@ scp -r models timotej.knez@frida:/shared/home/timotej.knez/llm-graph-constructio
 scp -r training timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 scp -r train_graph.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 scp -r train_text.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
+scp -r train_all.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 scp -r train_bimodal.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 scp -r precompute.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 scp -r precompute_graphs_for_analysis.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
-rsync -av -r pepeline timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
-rsync -av -r pepeline timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 rsync -av -r pipeline timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction
 rsync -av -r eval.sbatch timotej.knez@frida:/shared/home/timotej.knez/llm-graph-construction

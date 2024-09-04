@@ -412,7 +412,7 @@ def add_inverse_relations(data):
             row["minutes_between_means"] = -row["minutes_between_means"]
         row["class"] = relation_inverse(row["class"])
         data = pd.concat((data, row.to_frame().T))
-    return data.drop_duplicates().reset_index(drop=True)
+    return data.drop_duplicates(subset=['text', 'class', 'event1_start', 'event2_start'], keep='last').reset_index(drop=True)
 
 
 def convert_thymre_relations_to_i2b2(df):

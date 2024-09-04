@@ -405,7 +405,7 @@ def prepare_local_graph_dataset(full_text_df, configuration):
     test_df = combining_data.add_inverse_relations(full_text_df)
     test_df = combining_data.add_transitive_relations(test_df)
     test_df = combining_data.window_for_entity_bert(test_df, window_size=60, normalize_event_order=True)
-    test_df = test_df.drop_duplicates().reset_index()
+    test_df = test_df.drop_duplicates(subset=['text', 'class', 'event1_start', 'event2_start'], keep='last').reset_index()
     test_dataset = KnowledgeGraphDataset([], test_df, configuration=configuration)
     return test_dataset
 
@@ -415,7 +415,7 @@ def construct_graph_from_text_only(full_text_df, configuration, dataset_type="")
     test_df = combining_data.add_inverse_relations(full_text_df)
     test_df = combining_data.add_transitive_relations(test_df)
     test_df = combining_data.window_for_entity_bert(test_df, window_size=60, normalize_event_order=True)
-    test_df = test_df.drop_duplicates().reset_index(drop=True)
+    test_df = test_df.drop_duplicates(subset=['text', 'class', 'event1_start', 'event2_start'], keep='last').reset_index(drop=True)
     # TODO drop self loops
     test_dataset = KnowledgeGraphDataset([], test_df, configuration=configuration)
     dataLoader_test = torch_geometric.loader.DataLoader(test_dataset, batch_size=batch_size)

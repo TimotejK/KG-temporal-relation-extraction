@@ -26,6 +26,8 @@ class MultiModalPrediction(nn.Module):
             self.linear = nn.Linear(self.number_of_relations * 2, self.number_of_relations).double()
 
     def forward(self, data, labels):
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        data.to(device)
         graph_prediction = self.graph_model(data, labels=labels, return_embedding=True)
         text_prediction = self.text_model(data, labels=labels, return_embedding=True)
         concatenated = torch.cat((graph_prediction, text_prediction), 1)

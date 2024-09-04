@@ -23,6 +23,8 @@ class EntityBERTtextEncoder(nn.Module):
 
     # def forward(self, text, event1_start, event1_end, event2_start, event2_end):
     def forward(self, data, labels=None, return_embedding=False):
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        data.to(device)
         text, event1_start, event1_end, event2_start, event2_end = data.text, data.event1_start, data.event1_end, data.event2_start, data.event2_end
         text = list(text)
         # for i in range(len(text)):

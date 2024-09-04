@@ -170,6 +170,7 @@ def oversample(df, oversample=True, label_name='class'):
         df = df.sample(frac=1, random_state=42).reset_index(drop=True)
     return df
 
+
 def add_event_tokens(text, event1_start, event1_end, event2_start, event2_end):
     tag_start1, tag_start2, tag_end1, tag_end2 = "<e1>", "<e2>", "</e1>", "</e2>"
     # tag_start1, tag_start2, tag_end1, tag_end2 = "<e>", "<e>", "</e>", "</e>"
