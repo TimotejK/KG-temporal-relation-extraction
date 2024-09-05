@@ -9,7 +9,7 @@ from transformers import Trainer, TrainingArguments
 from custom_datasets.common import split_data, get_configuration_for_building_local_graph
 from custom_datasets.combining_data import read_i2b2, window_row_entity_bert
 from custom_datasets.dataframe_dataset import DFDataset
-from custom_datasets.error_correction import fix_precomputed_dataset
+from custom_datasets.error_correction import fix_precomputed_dataset, generate_edge_embedding
 from custom_datasets.knowledge_graph_dataset import create_knowledge_graph_dataset, \
     generate_llm_graph_for_event, generate_combination_graph, generate_relation_graph_llm, \
     generate_fast_combination_graph
@@ -120,11 +120,13 @@ def train_graph(dataset_train, dataset_val, dataset_test):
     with open("evaluation_results/results.txt", "a") as myfile:
         myfile.write("Results on eval - graph:" + "\n")
         myfile.write(str(results) + "\n")
+        myfile.flush()
 
     results = trainer.evaluate(eval_dataset=dataset_test)
     with open("evaluation_results/results.txt", "a") as myfile:
         myfile.write("Results on test - graph:" + "\n")
         myfile.write(str(results) + "\n")
+        myfile.flush()
 
     return model
 
@@ -135,6 +137,7 @@ def train_bimodal(dataset_train, dataset_val, dataset_test, graph_model):
 
     dataset_train.generated = list(filter(lambda x: x is not None, map(window_text, dataset_train.generated)))
     dataset_val.generated = list(filter(lambda x: x is not None, map(window_text, dataset_val.generated)))
+    dataset_test.generated = list(filter(lambda x: x is not None, map(window_text, dataset_test.generated)))
 
     training_args = TrainingArguments(
         output_dir="./results-bimodal",
@@ -149,7 +152,6 @@ def train_bimodal(dataset_train, dataset_val, dataset_test, graph_model):
         logging_strategy="epoch",
         push_to_hub=False
     )
-    training_args.set_optimizer(name="adafactor")
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -166,11 +168,13 @@ def train_bimodal(dataset_train, dataset_val, dataset_test, graph_model):
     with open("evaluation_results/results.txt", "a") as myfile:
         myfile.write("Results on eval - bimodal" + "\n")
         myfile.write(str(results) + "\n")
+        myfile.flush()
 
     results = trainer.evaluate(eval_dataset=dataset_test)
     with open("evaluation_results/results.txt", "a") as myfile:
         myfile.write("Results on test - bimodal:" + "\n")
         myfile.write(str(results) + "\n")
+        myfile.flush()
 
     return model
 
@@ -180,6 +184,7 @@ def train_text(dataset_train, dataset_val, dataset_test):
 
     dataset_train.generated = list(filter(lambda x: x is not None, map(window_text, dataset_train.generated)))
     dataset_val.generated = list(filter(lambda x: x is not None, map(window_text, dataset_val.generated)))
+    dataset_test.generated = list(filter(lambda x: x is not None, map(window_text, dataset_test.generated)))
 
     training_args = TrainingArguments(
         output_dir="./results-text",
@@ -194,7 +199,6 @@ def train_text(dataset_train, dataset_val, dataset_test):
         logging_strategy="epoch",
         push_to_hub=False
     )
-    training_args.set_optimizer(name="adafactor")
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -211,21 +215,21 @@ def train_text(dataset_train, dataset_val, dataset_test):
     with open("evaluation_results/results.txt", "a") as myfile:
         myfile.write("Results on eval - text" + "\n")
         myfile.write(str(results) + "\n")
+        myfile.flush()
 
     results = trainer.evaluate(eval_dataset=dataset_test)
     with open("evaluation_results/results.txt", "a") as myfile:
         myfile.write("Results on test - text:" + "\n")
         myfile.write(str(results) + "\n")
+        myfile.flush()
 
     return model
 
 def train():
     # dataset_train, dataset_val, dataset_test = prepare_dataset_combination_graph()
     dataset_train, dataset_val, dataset_test = load_stored_dataset_combination_graph()
-    # dataset_train.to_device(device)
-    # dataset_val.to_device(device)
-    # dataset_test.to_device(device)
-    graph_model = train_graph(dataset_train, dataset_val, dataset_test)
+    # graph_model = train_graph(dataset_train, dataset_val, dataset_test)
+    graph_model = torch.load("evaluation_results/graph_encoder.pt")
     bimodal_model = train_bimodal(dataset_train, dataset_val, dataset_test, graph_model)
     text_model = train_text(dataset_train, dataset_val, dataset_test)
 
