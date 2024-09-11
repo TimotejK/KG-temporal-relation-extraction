@@ -10,6 +10,9 @@ from langchain_community.llms import Ollama
 ollama = Ollama(base_url='http://localhost:11434',
 model="openchat:7b", num_predict=200)
 
+def request_open_Chat(prompt):
+    return ollama.invoke(prompt)
+
 def extract_data_in_brackets(input_string):
     pattern = r"\[(.*?)\]"
     matches = re.findall(pattern, input_string)

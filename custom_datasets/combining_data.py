@@ -487,7 +487,9 @@ if __name__ == '__main__':
     # build_konwledge_graph(read_i2b2())
     # build_konwledge_graph(parse_matres.read_matres())
     # i2b2df = load_data(full_text=True, use_test_files=True)
-    i2b2df = read_i2b2(full_text=True, use_test_files=True)
+
+    # i2b2df = read_i2b2(full_text=True, use_test_files=True)
+
     # macrobat_df = read_macrobat()
     # df = pd.concat((read_i2b2(), read_fine_grained_relations()))
     # build_konwledge_graph(df)
