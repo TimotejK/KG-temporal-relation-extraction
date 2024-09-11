@@ -17,8 +17,7 @@ from graph_building.local_graph.build_local_patient_graph import create_graph
 from graph_building.node_embeddings import sentence_embedding
 
 relation_types = ["BEFORE", "AFTER", "OVERLAP"]
-def combine_graphs(graph1, graph2, target):
-    global relation_types
+def combine_graphs(graph1, graph2, target, all_relations):
     x = torch.cat((graph1.x, graph2.x), 0)
     number_of_nodes_in_first_graph = graph1.x.size()[0]
     edge_index = torch.cat((graph1.edge_index, graph2.edge_index + number_of_nodes_in_first_graph), 1)
@@ -26,7 +25,7 @@ def combine_graphs(graph1, graph2, target):
     event1_index = graph1.term_index
     event2_index = graph2.term_index + number_of_nodes_in_first_graph
     # term_index = torch.cat((graph1.term_index, graph2.term_index + number_of_nodes_in_first_graph), 0)
-    return Data(x=x, y=torch.tensor([relation_types.index(target)]), edge_index=edge_index, edge_attr=edge_attr, event1_index=event1_index, event2_index=event2_index)
+    return Data(x=x, y=torch.tensor([all_relations.index(target)]), edge_index=edge_index, edge_attr=edge_attr, event1_index=event1_index, event2_index=event2_index)
 
 llm_responses = {}
 llm_responses2 = {}
@@ -57,7 +56,7 @@ def generate_relation_graph_llm(row, **kwargs):
     graph2 = generate_llm_graph_for_event(event=event2, **kwargs)
     if graph1 is None or graph2 is None:
         return None
-    graph = combine_graphs(graph1=graph1, graph2=graph2, target=relation)
+    graph = combine_graphs(graph1=graph1, graph2=graph2, target=relation, all_relations=kwargs["relation_types"])
     return graph
 
 def generate_primekg_graph_for_event(event, **kwargs):
@@ -76,7 +75,7 @@ def generate_relation_graph_primekg(row, **kwargs):
     graph2 = generate_primekg_graph_for_event(event=event2, **kwargs)
     if graph1 is None or graph2 is None:
         return None
-    graph = combine_graphs(graph1=graph1, graph2=graph2, target=relation)
+    graph = combine_graphs(graph1=graph1, graph2=graph2, target=relation, all_relations=kwargs["relation_types"])
     return graph
 
 def generate_local_graph_for_event(row, local_graph, configuration, **kwargs):
@@ -85,6 +84,10 @@ def generate_local_graph_for_event(row, local_graph, configuration, **kwargs):
 
 def combine_all_relation_graphs(llm_kg, local_kg, primekg_kg, row, **kwargs):
     global relation_types
+    if "relation_types" in kwargs:
+        all_relations = kwargs["relation_types"]
+    else:
+        all_relations = relation_types
     target = row["class"]
 
     if len(llm_kg.x.size()) < 2 or len(local_kg.x.size()) < 2 or len(primekg_kg.x.size()) < 2 or len(llm_kg.edge_attr.size()) < 2 or len(local_kg.edge_attr.size()) < 2 or len(primekg_kg.edge_attr.size()) < 2:
@@ -121,12 +124,16 @@ def combine_all_relation_graphs(llm_kg, local_kg, primekg_kg, row, **kwargs):
     edge_index[edge_index==local_kg.event2_index + llm_num_nodes] = llm_kg.event2_index
     edge_index[edge_index==primekg_kg.event2_index + llm_num_nodes + local_num_nodes] = llm_kg.event2_index
 
-    return Data(x=x, y=torch.tensor([relation_types.index(target)]), edge_index=edge_index, edge_attr=edge_attr,
+    return Data(x=x, y=torch.tensor([all_relations.index(target)]), edge_index=edge_index, edge_attr=edge_attr,
                 event1_index=llm_kg.event1_index, event2_index=llm_kg.event2_index)
 
 
 def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None, insert_time_nodes=False, **kwargs):
     global relation_types
+    if "relation_types" in kwargs:
+        all_relations = kwargs["relation_types"]
+    else:
+        all_relations = relation_types
     target = row["class"]
     x = None
     edge_index_list = [[],[]]
@@ -244,7 +251,7 @@ def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None, 
             edge_types.append(0)
 
     graph = Data(x=x,
-                 y=torch.tensor([relation_types.index(target)]),
+                 y=torch.tensor([all_relations.index(target)]),
                  edge_index=torch.tensor(edge_index_list),
                  edge_attr=torch.cat([x.reshape(-1, 1) for x in edge_features], dim=1).T,
                  edge_type=torch.tensor(edge_types),
@@ -299,7 +306,7 @@ def create_knowledge_graph_dataset_with_local_graphs(dataframe, graph_generation
         event2kg = graph_generation_function(event2)
         if event1kg is None or event2kg is None:
             return None
-        graph = combine_graphs(graph1=event1kg, graph2=event2kg, target=relation)
+        graph = combine_graphs(graph1=event1kg, graph2=event2kg, target=relation, all_relations=relation_types)
         graph["text"] = [row["text"]]
         graph["event1_start"] = [row["event1_start"]]
         graph["event1_end"] = [row["event1_end"]]

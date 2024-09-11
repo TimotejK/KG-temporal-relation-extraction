@@ -24,9 +24,11 @@ from models.text_encoder import EntityBERTtextEncoder
 
 def prepare_dataset_combination_graph(balanced=True, dataset="i2b2"):
     if dataset == "i2b2":
+        relation_types = ["BEFORE", "AFTER", "OVERLAP"]
         df = read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
         df_test = read_i2b2(full_text=True, use_test_files=True, include_rows_without_absolute=True)
     elif dataset == "thyme":
+        relation_types = ['BEFORE', 'AFTER', 'OVERLAP', 'BEGINS-ON', 'CONTAINED-BY', 'CONTAINS', 'ENDS-ON', 'CONTINUES', 'TERMINATES', 'INITIATES', 'REINITIATES']
         df = crp.read_encrypted(path='thyme.crypt', password=os.environ['TP'])
         df_test = crp.read_encrypted(path='thyme_test.crypt', password=os.environ['TP'])
     df_train, df_val, df_val2 = split_data(df, oversample=False, label_name='class', train_size=0.7, val_size=0.2, split_by_documents=True)
@@ -37,11 +39,11 @@ def prepare_dataset_combination_graph(balanced=True, dataset="i2b2"):
     patient_graphs_test = construct_graph_from_text_only(df_test, configuration, dataset_type="test")
 
     dataset_train = create_knowledge_graph_dataset(df_train, generate_fast_combination_graph, configuration=configuration,
-                                                   local_graph=patient_graphs_train, cache_only=False, insert_time_nodes=True)
+                                                   local_graph=patient_graphs_train, cache_only=False, insert_time_nodes=True, relation_types=relation_types)
     dataset_val = create_knowledge_graph_dataset(df_val, generate_fast_combination_graph, configuration=configuration,
-                                                   local_graph=patient_graphs_val, cache_only=False, insert_time_nodes=True)
+                                                   local_graph=patient_graphs_val, cache_only=False, insert_time_nodes=True, relation_types=relation_types)
     dataset_test = create_knowledge_graph_dataset(df_test, generate_fast_combination_graph, configuration=configuration,
-                                                   local_graph=patient_graphs_test, cache_only=False, insert_time_nodes=True)
+                                                   local_graph=patient_graphs_test, cache_only=False, insert_time_nodes=True, relation_types=relation_types)
 
     dataset_train.pregenerate_and_filter()
     dataset_train.save("pregenerated/"+dataset+"_dataset_train_new.pt")
@@ -131,8 +133,8 @@ def train_universal(model, dataset_steps, training_args_steps, model_description
         myfile.flush()
     return model
 
-def train_graph(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub):
-    model = GraphEncoder(node_size=768, edge_size=768 + 7, number_of_relations=3, dropout=0.2)
+def train_graph(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations, test_name):
+    model = GraphEncoder(node_size=768, edge_size=768 + 7, number_of_relations=number_of_relations, dropout=0.2)
 
     model.to(device)
 
@@ -155,7 +157,7 @@ def train_graph(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, da
                              (dataset_train_ub, dataset_val_ub, dataset_test_ub)],
                             [training_args, training_args], "Graph")
 
-    torch.save(model, "evaluation_results/graph_encoder.pt")
+    torch.save(model, "evaluation_results/graph_encoder-"+test_name+".pt")
 
     return model
 
@@ -198,8 +200,8 @@ def test_gpt_model(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub,
         myfile.flush()
     return model
 
-def train_bimodal(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, graph_model):
-    model = MultiModalPrediction(number_of_relations=3, combine_embeddings=True)
+def train_bimodal(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, graph_model, number_of_relations, test_name):
+    model = MultiModalPrediction(number_of_relations=number_of_relations, combine_embeddings=True)
     model.graph_model = graph_model
 
     training_args = TrainingArguments(
@@ -220,11 +222,11 @@ def train_bimodal(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, 
                             [(dataset_train, dataset_val, dataset_test_ub), (dataset_train_ub, dataset_val_ub, dataset_test_ub)],
                             [training_args, training_args], "Bimodal")
 
-    torch.save(model, "evaluation_results/bimodal-model.pt")
+    torch.save(model, "evaluation_results/bimodal-model-"+test_name+".pt")
     return model
 
-def train_text(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub):
-    model = EntityBERTtextEncoder(number_of_relations=3, pooling_strategy='both_events')
+def train_text(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations, test_name):
+    model = EntityBERTtextEncoder(number_of_relations=number_of_relations, pooling_strategy='both_events')
 
     training_args = TrainingArguments(
         output_dir="./results-text",
@@ -244,7 +246,7 @@ def train_text(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dat
                              (dataset_train_ub, dataset_val_ub, dataset_test_ub)],
                             [training_args, training_args], "Text")
 
-    torch.save(model, "evaluation_results/text-model.pt")
+    torch.save(model, "evaluation_results/text-model-"+test_name+".pt")
 
     return model
 
@@ -255,16 +257,19 @@ def train():
 
     dataset_train, dataset_val, dataset_test = prepare_dataset_combination_graph(balanced=True, dataset="thyme")
     # dataset_train, dataset_val, _ = load_stored_dataset_combination_graph(balanced=True)
-    # dataset_train_ub, dataset_val_ub, dataset_test_ub = load_stored_dataset_combination_graph(balanced=False)
+    dataset_train_ub, dataset_val_ub, dataset_test_ub = load_stored_dataset_combination_graph(balanced=False, dataset="thyme")
 
+    number_of_relations = 9
+    test_name = "thyme"
 
     # graph_model = test_gpt_model(None, dataset_val, None, None, dataset_test_ub)
     # graph_model = torch.load("evaluation_results/graph_encoder.pt")
-    graph_model = train_graph(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub)
-    bimodal_model = train_bimodal(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, graph_model)
-    text_model = train_text(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub)
+    graph_model = train_graph(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
+    bimodal_model = train_bimodal(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, graph_model, number_of_relations=number_of_relations, test_name=test_name)
+    text_model = train_text(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
 
 if __name__ == '__main__':
+    train()
     with open("evaluation_results/results.txt", "a") as myfile:
         myfile.write("\nTest " + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "\n")
         myfile.flush()

@@ -124,8 +124,7 @@ def expand_sentence(text, start, end):
 
 def split_data(df, oversample=False, label_name='class', train_size=0.6, val_size=0.2, split_by_documents=True):
     groups = df.groupby(label_name)
-    number_of_groups = 3
-    number_of_groups = len(groups)
+    number_of_groups = 3 # train, val, test
     final_dataframes = [None for _ in range(number_of_groups)]
     # train_df = None
     # val_df = None
