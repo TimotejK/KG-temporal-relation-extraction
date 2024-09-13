@@ -269,9 +269,8 @@ def train():
     text_model = train_text(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
 
 if __name__ == '__main__':
-    train()
-    with open("evaluation_results/results.txt", "a") as myfile:
-        myfile.write("\nTest " + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "\n")
-        myfile.flush()
+    # with open("evaluation_results/results.txt", "a") as myfile:
+    #     myfile.write("\nTest " + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "\n")
+    #     myfile.flush()
     dataset_train, dataset_val, dataset_test_ub = load_stored_dataset_combination_graph(balanced=True)
-    graph_model = test_gpt_model(None, dataset_val, None, None, dataset_test_ub)
+    test_gpt_model(None, dataset_val, None, None, dataset_test_ub)
