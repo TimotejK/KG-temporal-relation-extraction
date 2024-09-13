@@ -7,6 +7,7 @@ from graph_building.llm.OpenChat import request_open_Chat
 class GPTTemporalRelationExtraction(nn.Module):
     def __init__(self, plm_model='bert-base-cased', number_of_relations=3, dropout=0.2, deeper_network=False, pooling_strategy='both_events'):
         super(GPTTemporalRelationExtraction, self).__init__()
+        self.criterion = nn.CrossEntropyLoss()
     def forward(self, data, labels):
         text, event1_start, event1_end, event2_start, event2_end = data.text, data.event1_start, data.event1_end, data.event2_start, data.event2_end
         results = []
@@ -26,4 +27,6 @@ class GPTTemporalRelationExtraction(nn.Module):
                 results.append([0.0,1.0,0.0])
                 continue
             results.append([0.0,0.0,1.0])
-        return torch.tensor(results).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+        x = torch.tensor(results).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+        loss = self.criterion(x, labels)
+        return {"logits": x, "loss": loss}
