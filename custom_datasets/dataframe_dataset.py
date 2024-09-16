@@ -46,10 +46,13 @@ class DFDataset(Dataset):
 
     def oversample_list(self, list, size):
         new_list = []
+        if len(list) == 0:
+            return []
         while len(new_list) < size:
-            random.shuffle(list)
             new_list += list
-        return new_list[:size]
+        new_list = new_list[:size]
+        random.shuffle(new_list)
+        return new_list
 
     def oversample_pregenerated(self):
         if self.generated is None:
