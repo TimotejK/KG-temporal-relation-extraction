@@ -65,6 +65,8 @@ def add_inverse_relations(graph):
             conf_relation = list(inverse_relation[4])
             conf_relation[0], conf_relation[1] = conf_relation[1], conf_relation[0]
             inverse_relation[4] = tuple(conf_relation)
+        if len(inverse_relation) > 6:
+            inverse_relation[5], inverse_relation[6] = inverse_relation[6], inverse_relation[5]
         if tuple(inverse_relation) not in set_of_relations:
             new_relations.append(inverse_relation)
             set_of_relations.add(tuple(inverse_relation))
@@ -263,7 +265,9 @@ def generate_graph_for_gnn(graph, entity1, entity2, y, text_features=None, use_e
     edge_index = []
     edge_type = []
     edge_attr = []
+    text_relations = []
     for r in relations:
+        text_relations.append((r[5], r[1], r[6]))
         edge_index.append([node_to_index[r[0]], node_to_index[r[2]]])
         edge_type.append(labels[r[1]])
         if len(r) > 4:
@@ -292,7 +296,7 @@ def generate_graph_for_gnn(graph, entity1, entity2, y, text_features=None, use_e
     else:
         data = Data(x=x, edge_index=edge_index, edge_type=edge_type, y=torch.tensor([y]) if y is not None else None,
                     event1_index=index1, event2_index=index2, rule_based_prediction=rule_based_prediction)
-    return data
+    return data, text_relations
 
 def path_to_relations(graph, path):
     relation_sequence = []
@@ -323,7 +327,7 @@ def rule_based_model(graph, event1, event2):
     else:
         return 2
 
-def create_graph(iteration):
+def create_graph(iteration, **kwargs):
     row, graph, configuration = iteration
     if type(row) is tuple or type(row) is list:
         row = row[1]
@@ -358,11 +362,14 @@ def create_graph(iteration):
 
     if configuration.remove_target_relation:
         active_graph = filter_knowledge_graph(active_graph, [event1, event2])
-    subgraph = generate_graph_for_gnn(active_graph, event1, event2,
+    subgraph, text_triplets = generate_graph_for_gnn(active_graph, event1, event2,
                                       labels[row["class"]] if row["class"] else None, text_features, use_entire_graph=configuration.use_entire_graph)
     if len(subgraph.x) == 0:
         return None
-    return subgraph
+    if "return_text_triplets" in kwargs and kwargs["return_text_triplets"]:
+        return subgraph, text_triplets
+    else:
+        return subgraph
 
 class KnowledgeGraphDataset(torch.utils.data.Dataset):
     def __init__(self, graph, df, number_of_classes=3, simulate_wrong_relations=False, configuration=Configuration()):
@@ -465,11 +472,13 @@ def construct_graph_from_text_only(full_text_df, configuration, dataset_type="")
             if p == lab[i]:
                 correct += 1
             n += 1
-            event1 = link_entity_to_umls(graph.text[i][graph.event1_start[i]:graph.event1_end[i]])
-            event2 = link_entity_to_umls(graph.text[i][graph.event2_start[i]:graph.event2_end[i]])
+            raw_event1 = graph.text[i][graph.event1_start[i]:graph.event1_end[i]]
+            event1 = link_entity_to_umls(raw_event1)
+            raw_event2 = graph.text[i][graph.event2_start[i]:graph.event2_end[i]]
+            event2 = link_entity_to_umls(raw_event2)
             document_id = graph.document_id[i]
             relation = index_to_label[p]
-            in_memory_graph.append([event1, relation, event2, document_id, raw_pred])
+            in_memory_graph.append([event1, relation, event2, document_id, raw_pred, raw_event1, raw_event2])
     print("Accuracy:", correct / n)
     print("Number of relations:", n / n_all)
     file1 = open("construct graph from text only.log", "a")  # append mode

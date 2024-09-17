@@ -38,10 +38,10 @@ def prepare_dataset_combination_graph(balanced=True, dataset="i2b2"):
     patient_graphs_val = construct_graph_from_text_only(df_val, configuration, dataset_type="val")
     patient_graphs_test = construct_graph_from_text_only(df_test, configuration, dataset_type="test")
 
-    dataset_train = create_knowledge_graph_dataset(df_train, generate_fast_combination_graph, configuration=configuration,
-                                                   local_graph=patient_graphs_train, cache_only=False, insert_time_nodes=True, relation_types=relation_types)
     dataset_val = create_knowledge_graph_dataset(df_val, generate_fast_combination_graph, configuration=configuration,
                                                    local_graph=patient_graphs_val, cache_only=False, insert_time_nodes=True, relation_types=relation_types)
+    dataset_train = create_knowledge_graph_dataset(df_train, generate_fast_combination_graph, configuration=configuration,
+                                                   local_graph=patient_graphs_train, cache_only=False, insert_time_nodes=True, relation_types=relation_types)
     dataset_test = create_knowledge_graph_dataset(df_test, generate_fast_combination_graph, configuration=configuration,
                                                    local_graph=patient_graphs_test, cache_only=False, insert_time_nodes=True, relation_types=relation_types)
 
@@ -161,7 +161,7 @@ def train_graph(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, da
 
     return model
 
-def test_gpt_model(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub):
+def test_gpt_model(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub,number_of_relations, test_name):
     model = GPTTemporalRelationExtraction()
 
     model.to(device)
@@ -259,7 +259,8 @@ def train():
     dataset_train, dataset_val, _ = load_stored_dataset_combination_graph(balanced=True, dataset="thyme")
     dataset_train_ub, dataset_val_ub, dataset_test_ub = load_stored_dataset_combination_graph(balanced=False, dataset="thyme")
 
-    number_of_relations = 9
+    # number_of_relations = 9
+    number_of_relations = 11 # imamo relacije 0, 2, 3, 5, 6, 7, 8, 9, 10
     test_name = "thyme"
 
     # graph_model = test_gpt_model(None, dataset_val, None, None, dataset_test_ub)
@@ -267,9 +268,11 @@ def train():
     graph_model = train_graph(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
     bimodal_model = train_bimodal(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, graph_model, number_of_relations=number_of_relations, test_name=test_name)
     text_model = train_text(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
+    test_gpt_model(None, dataset_val, None, None, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
 
 if __name__ == '__main__':
     train()
+    prepare_dataset_combination_graph(balanced=True, dataset="thyme")
     # with open("evaluation_results/results.txt", "a") as myfile:
     #     myfile.write("\nTest " + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "\n")
     #     myfile.flush()

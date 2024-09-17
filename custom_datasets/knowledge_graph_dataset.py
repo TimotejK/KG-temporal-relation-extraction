@@ -1,3 +1,4 @@
+import itertools
 import os.path
 
 import torch
@@ -13,6 +14,7 @@ from custom_datasets.error_correction import update_pregenerated_graph, generate
 from graph_building.graph_construction import link_to_umls
 from graph_building.graph_construction import get_subgraph
 from graph_building.llm import OpenChat
+from graph_building.llm.OpenChat import parse
 from graph_building.local_graph.build_local_patient_graph import create_graph
 from graph_building.node_embeddings import sentence_embedding
 
@@ -36,28 +38,33 @@ if os.path.isfile("llm_responses2.pt"):
 def generate_llm_graph_for_event(event, **kwargs):
     global llm_responses
     if event in llm_responses:
-        return llm_responses[event][0]
+        graph, response = llm_responses[event]
+        return graph, parse(response)
     if event in llm_responses2:
-        return llm_responses2[event][0]
+        graph, response = llm_responses2[event]
+        return graph, parse(response)
     if "cache_only" in kwargs and kwargs["cache_only"]:
         print("Warning: missing llm response when only using cached responses")
         return None
     event1kg, response = OpenChat.get_kg_from_llm(event, "condition")
     llm_responses2[event] = (event1kg, response)
     torch.save(llm_responses2, "llm_responses2.pt")
-    return event1kg
+    return event1kg, parse(response)
 
 def generate_relation_graph_llm(row, **kwargs):
     event1 = row["event1_text"]
     event2 = row["event2_text"]
     relation = row["class"]
 
-    graph1 = generate_llm_graph_for_event(event=event1, **kwargs)
-    graph2 = generate_llm_graph_for_event(event=event2, **kwargs)
+    graph1, text_triplets1 = generate_llm_graph_for_event(event=event1, **kwargs)
+    graph2, text_triplets2 = generate_llm_graph_for_event(event=event2, **kwargs)
     if graph1 is None or graph2 is None:
         return None
     graph = combine_graphs(graph1=graph1, graph2=graph2, target=relation, all_relations=kwargs["relation_types"])
-    return graph
+    if "return_text_triplets" in kwargs and kwargs["return_text_triplets"]:
+        return graph, text_triplets1, text_triplets2
+    else:
+        return graph
 
 def generate_primekg_graph_for_event(event, **kwargs):
     umls_id, mondo = link_to_umls(event)
@@ -79,8 +86,12 @@ def generate_relation_graph_primekg(row, **kwargs):
     return graph
 
 def generate_local_graph_for_event(row, local_graph, configuration, **kwargs):
-    graph = create_graph((row, local_graph, configuration))
-    return graph
+    if "return_text_triplets" in kwargs and kwargs["return_text_triplets"]:
+        graph, text_triplets = create_graph((row, local_graph, configuration), **kwargs)
+        return graph, text_triplets
+    else:
+        graph = create_graph((row, local_graph, configuration), **kwargs)
+        return graph
 
 def combine_all_relation_graphs(llm_kg, local_kg, primekg_kg, row, **kwargs):
     global relation_types
@@ -128,7 +139,7 @@ def combine_all_relation_graphs(llm_kg, local_kg, primekg_kg, row, **kwargs):
                 event1_index=llm_kg.event1_index, event2_index=llm_kg.event2_index)
 
 
-def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None, insert_time_nodes=False, **kwargs):
+def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None, insert_time_nodes=False, triplets=None, **kwargs):
     global relation_types
     if "relation_types" in kwargs:
         all_relations = kwargs["relation_types"]
@@ -250,22 +261,25 @@ def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None, 
                 generate_edge_embedding('date', 0, date2vec.date_embedding.compute_date_embedding(*discharge)))
             edge_types.append(0)
 
+    text_relations = [tuple(l) for l in list(itertools.chain(*triplets))]
+
     graph = Data(x=x,
                  y=torch.tensor([all_relations.index(target)]),
                  edge_index=torch.tensor(edge_index_list),
                  edge_attr=torch.cat([x.reshape(-1, 1) for x in edge_features], dim=1).T,
                  edge_type=torch.tensor(edge_types),
                  event1_index=event1_node_index,
-                 event2_index=event2_node_index)
+                 event2_index=event2_node_index,
+                 text_relations=text_relations)
     return graph
 
 def generate_fast_combination_graph(**kwargs):
-    llm_kg = generate_relation_graph_llm(**kwargs)
-    local_kg = generate_local_graph_for_event(**kwargs)
+    llm_kg, text_triplets1, text_triplets2 = generate_relation_graph_llm(**kwargs, return_text_triplets=True)
+    local_kg, text_triplets = generate_local_graph_for_event(**kwargs, return_text_triplets=True)
     if llm_kg is None or local_kg is None:
         print("Warning: no graph provided for input!")
         return None
-    combination_graph = combine_fast_combination_graphs_fixed(llm_kg=llm_kg, local_kg=local_kg, **kwargs)
+    combination_graph = combine_fast_combination_graphs_fixed(llm_kg=llm_kg, local_kg=local_kg, triplets=[text_triplets, text_triplets1, text_triplets2] **kwargs)
     return combination_graph
 
 
