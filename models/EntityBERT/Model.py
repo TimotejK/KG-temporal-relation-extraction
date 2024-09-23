@@ -187,6 +187,8 @@ class EntityBERTRelationExtraction(nn.Module):
         super(EntityBERTRelationExtraction, self).__init__()
         self.EntityBert = AutoModel.from_pretrained("./pretrained models/PubmedBERTbase-MimicBig-EntityBERT")
         self.tokenizer = AutoTokenizer.from_pretrained("./pretrained models/PubmedBERTbase-MimicBig-EntityBERT")
+        # self.EntityBert = AutoModel.from_pretrained("medicalai/ClinicalBERT")
+        # self.tokenizer = AutoTokenizer.from_pretrained("medicalai/ClinicalBERT")
         self.pooling_strategy = pooling_strategy
         for param in self.EntityBert.parameters():
             param.requires_grad = False

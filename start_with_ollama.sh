@@ -1,4 +1,4 @@
 #!/bin/bash
 ollama serve &
-python main.py
+python main.py "$@"
 systemctl stop ollama.service

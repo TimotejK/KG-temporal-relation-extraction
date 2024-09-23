@@ -1,4 +1,5 @@
 import os.path
+from collections import Counter
 from datetime import datetime
 
 import numpy as np
@@ -46,11 +47,11 @@ def prepare_dataset_combination_graph(balanced=True, dataset="i2b2"):
                                                    local_graph=patient_graphs_test, cache_only=False, insert_time_nodes=True, relation_types=relation_types)
 
     dataset_train.pregenerate_and_filter()
-    dataset_train.save("pregenerated/"+dataset+"_dataset_train_new.pt")
+    dataset_train.save("pregenerated/"+dataset+"_dataset_train_rawkg.pt")
     dataset_val.pregenerate_and_filter()
-    dataset_val.save("pregenerated/"+dataset+"_dataset_val_new.pt")
+    dataset_val.save("pregenerated/"+dataset+"_dataset_val_rawkg.pt")
     dataset_test.pregenerate_and_filter()
-    dataset_test.save("pregenerated/"+dataset+"_dataset_test_new.pt")
+    dataset_test.save("pregenerated/"+dataset+"_dataset_test_rawkg.pt")
 
     if balanced:
         dataset_train.oversample_pregenerated()
@@ -200,6 +201,61 @@ def test_gpt_model(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub,
         myfile.flush()
     return model
 
+
+def test_baseline_model(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, test_name):
+
+    dataset = dataset_val
+    classes = [int(a) for a in dataset.generated]
+    number_of_most_common_apperances = Counter(classes).most_common(1)[0][1]
+    accuracy = number_of_most_common_apperances / len(dataset.generated)
+    with open("evaluation_results/results.txt", "a") as myfile:
+        myfile.write("Baseline" + " - balanced - val:" + "\n")
+        myfile.write(str(accuracy) + "\n")
+        myfile.flush()
+
+    dataset = dataset_val_ub
+    classes = [int(a) for a in dataset.generated]
+    number_of_most_common_apperances = Counter(classes).most_common(1)[0][1]
+    accuracy = number_of_most_common_apperances / len(dataset.generated)
+    with open("evaluation_results/results.txt", "a") as myfile:
+        myfile.write("Baseline" + " - unbalanced - val:" + "\n")
+        myfile.write(str(accuracy) + "\n")
+        myfile.flush()
+
+    dataset = dataset_test_ub
+    classes = [int(a) for a in dataset.generated]
+    number_of_most_common_apperances = Counter(classes).most_common(1)[0][1]
+    accuracy = number_of_most_common_apperances / len(dataset.generated)
+    with open("evaluation_results/results.txt", "a") as myfile:
+        myfile.write("Baseline" + " - unbalanced - test:" + "\n")
+        myfile.write(str(accuracy) + "\n")
+        myfile.flush()
+
+def train_glm(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, graph_model, number_of_relations, test_name):
+    model = MultiModalPrediction(number_of_relations=number_of_relations, combine_embeddings=True)
+    model.graph_model = graph_model
+
+    training_args = TrainingArguments(
+        output_dir="./results-glm",
+        learning_rate=0.001,
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=16,
+        auto_find_batch_size=True,
+        num_train_epochs=50,
+        weight_decay=0.0001,
+        gradient_accumulation_steps=1,
+        evaluation_strategy="epoch",
+        logging_strategy="epoch",
+        push_to_hub=False
+    )
+
+    model = train_universal(model,
+                            [(dataset_train, dataset_val, dataset_test_ub), (dataset_train_ub, dataset_val_ub, dataset_test_ub)],
+                            [training_args, training_args], "Bimodal")
+
+    torch.save(model, "evaluation_results/bimodal-model-"+test_name+".pt")
+    return model
+
 def train_bimodal(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, graph_model, number_of_relations, test_name):
     model = MultiModalPrediction(number_of_relations=number_of_relations, combine_embeddings=True)
     model.graph_model = graph_model
@@ -255,7 +311,7 @@ def train():
         myfile.write("\nTest " + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "\n")
         myfile.flush()
 
-    # dataset_train, dataset_val, dataset_test = prepare_dataset_combination_graph(balanced=True, dataset="thyme")
+    dataset_train, dataset_val, dataset_test = prepare_dataset_combination_graph(balanced=True, dataset="i2b2")
     dataset_train, dataset_val, _ = load_stored_dataset_combination_graph(balanced=True, dataset="thyme")
     dataset_train_ub, dataset_val_ub, dataset_test_ub = load_stored_dataset_combination_graph(balanced=False, dataset="thyme")
 
@@ -265,14 +321,15 @@ def train():
 
     # graph_model = test_gpt_model(None, dataset_val, None, None, dataset_test_ub)
     # graph_model = torch.load("evaluation_results/graph_encoder.pt")
-    graph_model = train_graph(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
-    bimodal_model = train_bimodal(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, graph_model, number_of_relations=number_of_relations, test_name=test_name)
-    text_model = train_text(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
+    # graph_model = train_graph(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
+    # bimodal_model = train_bimodal(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, graph_model, number_of_relations=number_of_relations, test_name=test_name)
+    # text_model = train_text(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
+    test_baseline_model(None, dataset_val, None, None, dataset_test_ub, test_name=test_name)
     test_gpt_model(None, dataset_val, None, None, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
 
 if __name__ == '__main__':
-    train()
-    prepare_dataset_combination_graph(balanced=True, dataset="thyme")
+    # train()
+    prepare_dataset_combination_graph(balanced=True, dataset="i2b2")
     # with open("evaluation_results/results.txt", "a") as myfile:
     #     myfile.write("\nTest " + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "\n")
     #     myfile.flush()

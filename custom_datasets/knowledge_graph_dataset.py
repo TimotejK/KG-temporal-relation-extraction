@@ -258,10 +258,11 @@ def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None, 
                 generate_edge_embedding('date', 0, date2vec.date_embedding.compute_date_embedding(*admission)))
             edge_types.append(0)
             edge_features.append(
-                generate_edge_embedding('date', 0, date2vec.date_embedding.compute_date_embedding(*discharge)))
+                generate_edge_embedding('date', 0, date2vec.date_embedding.compute_date_embedding(*dct)))
             edge_types.append(0)
 
     text_relations = [tuple(l) for l in list(itertools.chain(*triplets))]
+
 
     graph = Data(x=x,
                  y=torch.tensor([all_relations.index(target)]),
@@ -274,12 +275,15 @@ def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None, 
     return graph
 
 def generate_fast_combination_graph(**kwargs):
-    llm_kg, text_triplets1, text_triplets2 = generate_relation_graph_llm(**kwargs, return_text_triplets=True)
-    local_kg, text_triplets = generate_local_graph_for_event(**kwargs, return_text_triplets=True)
-    if llm_kg is None or local_kg is None:
-        print("Warning: no graph provided for input!")
-        return None
-    combination_graph = combine_fast_combination_graphs_fixed(llm_kg=llm_kg, local_kg=local_kg, triplets=[text_triplets, text_triplets1, text_triplets2] **kwargs)
+    try:
+        llm_kg, text_triplets1, text_triplets2 = generate_relation_graph_llm(**kwargs, return_text_triplets=True)
+        local_kg, text_triplets = generate_local_graph_for_event(**kwargs, return_text_triplets=True)
+        if llm_kg is None or local_kg is None:
+            print("Warning: no graph provided for input!")
+            return None
+        combination_graph = combine_fast_combination_graphs_fixed(llm_kg=llm_kg, local_kg=local_kg, triplets=[text_triplets, text_triplets1, text_triplets2] **kwargs)
+    except Exception as err:
+        print("Something went wrong ", err)
     return combination_graph
 
 
