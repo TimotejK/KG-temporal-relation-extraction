@@ -312,9 +312,9 @@ def train():
         myfile.flush()
 
     dataset_train, dataset_val, dataset_test = prepare_dataset_combination_graph(balanced=True, dataset="i2b2")
-    dataset_train, dataset_val, _ = load_stored_dataset_combination_graph(balanced=True, dataset="thyme")
-    dataset_train_ub, dataset_val_ub, dataset_test_ub = load_stored_dataset_combination_graph(balanced=False, dataset="thyme")
-
+    # dataset_train, dataset_val, _ = load_stored_dataset_combination_graph(balanced=True, dataset="thyme")
+    dataset_train_ub, dataset_val_ub, dataset_test_ub = load_stored_dataset_combination_graph(balanced=False, dataset="i2b2")
+    return
     # number_of_relations = 9
     number_of_relations = 11 # imamo relacije 0, 2, 3, 5, 6, 7, 8, 9, 10
     test_name = "thyme"

@@ -248,7 +248,7 @@ def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None, 
     if insert_time_nodes:
         dct, admission = get_more_information_from_graph(row.text, row.event1_start, row.event2_start,
                                                                row.event1_end, row.event2_end)
-        if dct[0] > 0:
+        if int(dct[0]) > 0:
             x = torch.cat((x, sentence_embedding("Admission"), sentence_embedding("Discharge")))
             edge_index_list[0].append(document_node_index)
             edge_index_list[1].append(len(x) - 2)
@@ -258,7 +258,7 @@ def combine_fast_combination_graphs_fixed(row, llm_kg, local_kg, prime_kg=None, 
                 generate_edge_embedding('date', 0, date2vec.date_embedding.compute_date_embedding(*admission)))
             edge_types.append(0)
             edge_features.append(
-                generate_edge_embedding('date', 0, date2vec.date_embedding.compute_date_embedding(*dct)))
+                generate_edge_embedding('date', 0, date2vec.date_embedding.compute_date_embedding(*[int(a) for a in dct])))
             edge_types.append(0)
 
     text_relations = [tuple(l) for l in list(itertools.chain(*triplets))]
@@ -281,7 +281,7 @@ def generate_fast_combination_graph(**kwargs):
         if llm_kg is None or local_kg is None:
             print("Warning: no graph provided for input!")
             return None
-        combination_graph = combine_fast_combination_graphs_fixed(llm_kg=llm_kg, local_kg=local_kg, triplets=[text_triplets, text_triplets1, text_triplets2] **kwargs)
+        combination_graph = combine_fast_combination_graphs_fixed(llm_kg=llm_kg, local_kg=local_kg, triplets=[text_triplets, text_triplets1, text_triplets2], **kwargs)
     except Exception as err:
         print("Something went wrong ", err)
     return combination_graph
