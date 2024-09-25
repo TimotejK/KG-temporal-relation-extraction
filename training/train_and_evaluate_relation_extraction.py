@@ -61,11 +61,11 @@ def prepare_dataset_combination_graph(balanced=True, dataset="i2b2"):
 
 def load_stored_dataset_combination_graph(balanced=True, dataset="i2b2"):
     dataset_train = DFDataset()
-    dataset_train.load("pregenerated/"+dataset+"_dataset_train_new.pt")
+    dataset_train.load("pregenerated/"+dataset+"_dataset_train_rawkg.pt")
     dataset_val = DFDataset()
-    dataset_val.load("pregenerated/"+dataset+"_dataset_val_new.pt")
+    dataset_val.load("pregenerated/"+dataset+"_dataset_val_rawkg.pt")
     dataset_test = DFDataset()
-    dataset_test.load("pregenerated/"+dataset+"_dataset_test_new.pt")
+    dataset_test.load("pregenerated/"+dataset+"_dataset_test_rawkg.pt")
 
     if balanced:
         dataset_train.oversample_pregenerated()
@@ -203,33 +203,35 @@ def test_gpt_model(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub,
 
 
 def test_baseline_model(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, test_name):
-
     dataset = dataset_val
-    classes = [int(a) for a in dataset.generated]
-    number_of_most_common_apperances = Counter(classes).most_common(1)[0][1]
-    accuracy = number_of_most_common_apperances / len(dataset.generated)
-    with open("evaluation_results/results.txt", "a") as myfile:
-        myfile.write("Baseline" + " - balanced - val:" + "\n")
-        myfile.write(str(accuracy) + "\n")
-        myfile.flush()
+    if dataset is not None:
+        classes = [int(a.y) for a in dataset.generated]
+        number_of_most_common_apperances = Counter(classes).most_common(1)[0][1]
+        accuracy = number_of_most_common_apperances / len(dataset.generated)
+        with open("evaluation_results/results.txt", "a") as myfile:
+            myfile.write("Baseline" + " - balanced - val:" + "\n")
+            myfile.write(str(accuracy) + "\n")
+            myfile.flush()
 
     dataset = dataset_val_ub
-    classes = [int(a) for a in dataset.generated]
-    number_of_most_common_apperances = Counter(classes).most_common(1)[0][1]
-    accuracy = number_of_most_common_apperances / len(dataset.generated)
-    with open("evaluation_results/results.txt", "a") as myfile:
-        myfile.write("Baseline" + " - unbalanced - val:" + "\n")
-        myfile.write(str(accuracy) + "\n")
-        myfile.flush()
+    if dataset is not None:
+        classes = [int(a.y) for a in dataset.generated]
+        number_of_most_common_apperances = Counter(classes).most_common(1)[0][1]
+        accuracy = number_of_most_common_apperances / len(dataset.generated)
+        with open("evaluation_results/results.txt", "a") as myfile:
+            myfile.write("Baseline" + " - unbalanced - val:" + "\n")
+            myfile.write(str(accuracy) + "\n")
+            myfile.flush()
 
     dataset = dataset_test_ub
-    classes = [int(a) for a in dataset.generated]
-    number_of_most_common_apperances = Counter(classes).most_common(1)[0][1]
-    accuracy = number_of_most_common_apperances / len(dataset.generated)
-    with open("evaluation_results/results.txt", "a") as myfile:
-        myfile.write("Baseline" + " - unbalanced - test:" + "\n")
-        myfile.write(str(accuracy) + "\n")
-        myfile.flush()
+    if dataset is not None:
+        classes = [int(a.y) for a in dataset.generated]
+        number_of_most_common_apperances = Counter(classes).most_common(1)[0][1]
+        accuracy = number_of_most_common_apperances / len(dataset.generated)
+        with open("evaluation_results/results.txt", "a") as myfile:
+            myfile.write("Baseline" + " - unbalanced - test:" + "\n")
+            myfile.write(str(accuracy) + "\n")
+            myfile.flush()
 
 def train_glm(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, graph_model, number_of_relations, test_name):
     model = MultiModalPrediction(number_of_relations=number_of_relations, combine_embeddings=True)
@@ -311,10 +313,9 @@ def train():
         myfile.write("\nTest " + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "\n")
         myfile.flush()
 
-    dataset_train, dataset_val, dataset_test = prepare_dataset_combination_graph(balanced=True, dataset="i2b2")
+    dataset_train, dataset_val, dataset_test = prepare_dataset_combination_graph(balanced=True, dataset="thyme")
     # dataset_train, dataset_val, _ = load_stored_dataset_combination_graph(balanced=True, dataset="thyme")
-    dataset_train_ub, dataset_val_ub, dataset_test_ub = load_stored_dataset_combination_graph(balanced=False, dataset="i2b2")
-    return
+    dataset_train_ub, dataset_val_ub, dataset_test_ub = load_stored_dataset_combination_graph(balanced=False, dataset="thyme")
     # number_of_relations = 9
     number_of_relations = 11 # imamo relacije 0, 2, 3, 5, 6, 7, 8, 9, 10
     test_name = "thyme"
