@@ -17,6 +17,8 @@ from custom_datasets.knowledge_graph_dataset import create_knowledge_graph_datas
     generate_llm_graph_for_event, generate_combination_graph, generate_relation_graph_llm, \
     generate_fast_combination_graph
 from graph_building.local_graph.build_local_patient_graph import construct_graph_from_text_only
+from models.BaselineBERT import BaselineBERT
+from models.GraphLanguageModel import GraphLanguageModel
 from models.baselines.GPTmodel import GPTTemporalRelationExtraction
 from models.bimodal import MultiModalPrediction
 from models.knowledge_graph_encoder import GraphEncoder
@@ -233,9 +235,8 @@ def test_baseline_model(dataset_train, dataset_val, dataset_train_ub, dataset_va
             myfile.write(str(accuracy) + "\n")
             myfile.flush()
 
-def train_glm(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, graph_model, number_of_relations, test_name):
-    model = MultiModalPrediction(number_of_relations=number_of_relations, combine_embeddings=True)
-    model.graph_model = graph_model
+def train_glm(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations, test_name):
+    model = GraphLanguageModel(number_of_relations=number_of_relations)
 
     training_args = TrainingArguments(
         output_dir="./results-glm",
@@ -253,9 +254,9 @@ def train_glm(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, data
 
     model = train_universal(model,
                             [(dataset_train, dataset_val, dataset_test_ub), (dataset_train_ub, dataset_val_ub, dataset_test_ub)],
-                            [training_args, training_args], "Bimodal")
+                            [training_args, training_args], "GLM model")
 
-    torch.save(model, "evaluation_results/bimodal-model-"+test_name+".pt")
+    torch.save(model, "evaluation_results/gml-model-"+test_name+".pt")
     return model
 
 def train_bimodal(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, graph_model, number_of_relations, test_name):
@@ -308,25 +309,55 @@ def train_text(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dat
 
     return model
 
+def train_baseline_bert(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations, test_name):
+    model = BaselineBERT(number_of_relations=number_of_relations, pooling_strategy='cls')
+
+    training_args = TrainingArguments(
+        output_dir="./results-baselineBERT",
+        learning_rate=0.0001,
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=16,
+        auto_find_batch_size=True,
+        num_train_epochs=50,
+        weight_decay=0.0001,
+        gradient_accumulation_steps=1,
+        evaluation_strategy="epoch",
+        logging_strategy="epoch",
+        push_to_hub=False
+    )
+    model = train_universal(model,
+                            [(dataset_train, dataset_val, dataset_test_ub),
+                             (dataset_train_ub, dataset_val_ub, dataset_test_ub)],
+                            [training_args, training_args], "Baseline BERT (clinicalBERT)")
+
+    torch.save(model, "evaluation_results/baseline-bert-model-"+test_name+".pt")
+
+    return model
+
 def train():
     with open("evaluation_results/results.txt", "a") as myfile:
         myfile.write("\nTest " + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "\n")
         myfile.flush()
 
-    dataset_train, dataset_val, dataset_test = prepare_dataset_combination_graph(balanced=True, dataset="thyme")
-    # dataset_train, dataset_val, _ = load_stored_dataset_combination_graph(balanced=True, dataset="thyme")
-    dataset_train_ub, dataset_val_ub, dataset_test_ub = load_stored_dataset_combination_graph(balanced=False, dataset="thyme")
-    # number_of_relations = 9
-    number_of_relations = 11 # imamo relacije 0, 2, 3, 5, 6, 7, 8, 9, 10
-    test_name = "thyme"
+    # test_name = "thyme"
+    test_name = "i2b2"
 
-    # graph_model = test_gpt_model(None, dataset_val, None, None, dataset_test_ub)
-    # graph_model = torch.load("evaluation_results/graph_encoder.pt")
+    # dataset_train, dataset_val, dataset_test = prepare_dataset_combination_graph(balanced=True, dataset="thyme")
+    dataset_train, dataset_val, _ = load_stored_dataset_combination_graph(balanced=True, dataset=test_name)
+    dataset_train_ub, dataset_val_ub, dataset_test_ub = load_stored_dataset_combination_graph(balanced=False, dataset=test_name)
+    # number_of_relations = 9
+    if test_name == "thyme":
+        number_of_relations = 11 # imamo relacije 0, 2, 3, 5, 6, 7, 8, 9, 10
+    else:
+        number_of_relations = 3
+
+    # train_glm(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
     # graph_model = train_graph(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
     # bimodal_model = train_bimodal(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, graph_model, number_of_relations=number_of_relations, test_name=test_name)
     # text_model = train_text(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
-    test_baseline_model(None, dataset_val, None, None, dataset_test_ub, test_name=test_name)
-    test_gpt_model(None, dataset_val, None, None, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
+    train_baseline_bert(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
+    # test_baseline_model(None, dataset_val, None, None, dataset_test_ub, test_name=test_name)
+    # test_gpt_model(None, dataset_val, None, None, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
 
 if __name__ == '__main__':
     # train()
