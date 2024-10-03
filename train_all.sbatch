@@ -17,5 +17,6 @@ srun \
   -A lpt -p frida \
   --container-image /shared/home/timotej.knez/containers/pytorch.sqfs \
   --container-mounts "$PWD":/workspace \
-  bash -c "pip uninstall -y transformers; pip uninstall -y accelerate; pip install transformers==4.20.1 accelerate==0.11.0 cryptpandas nltk lightning==2.0.8; ./start_with_ollama.sh --method train_all"
+  bash -c "pip uninstall -y transformers; pip uninstall -y accelerate; pip install transformers==4.27.3 accelerate==0.11.0 cryptpandas nltk lightning==2.0.8; ./start_with_ollama.sh --method train_all"
 # glm: transformers==4.27.3
+# ostalo: transformers==4.20.1

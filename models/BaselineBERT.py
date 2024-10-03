@@ -26,9 +26,10 @@ class BaselineBERT(nn.Module):
         else:
             self.post_layers = nn.Linear(input_size, number_of_relations)
         self.softmax = nn.Softmax(dim=1)
+        self.criterion = nn.CrossEntropyLoss()
 
     # def forward(self, text, event1_start, event1_end, event2_start, event2_end):
-    def forward(self, data, return_embedding=False):
+    def forward(self, data, labels, return_embedding=False):
         text, event1_start, event1_end, event2_start, event2_end = data.text, data.event1_start, data.event1_end, data.event2_start, data.event2_end
         text = list(text)
         tokens = self.tokenizer(text, return_tensors="pt", max_length=100, padding='max_length', truncation=True)
@@ -55,4 +56,6 @@ class BaselineBERT(nn.Module):
             return bert_output
 
         x = self.post_layers(bert_output)
-        return self.softmax(x)
+        x = self.softmax(x)
+        loss = self.criterion(x, labels)
+        return {"loss": loss, "logits": x}

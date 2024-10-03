@@ -97,6 +97,38 @@ def window_text(graph):
 
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
+# device = "cpu"
+
+def hyper_parameter_search(model_init, dataset_train, dataset_val, dataset_test, training_arguments, model_description):
+    def wandb_hp_space(trial):
+        return {
+            "name": "textsweep",
+            "method": "random",
+            "metric": {"name": "validation_loss", "goal": "minimize"},
+            "parameters": {
+                "learning_rate": {"distribution": "uniform", "min": 1e-5, "max": 1e-2},
+                "weight_decay": {"distribution": "uniform", "min": 1e-5, "max": 1e-1}
+            },
+        }
+
+    trainer = Trainer(
+        model=None,
+        args=training_arguments,
+        train_dataset=dataset_train,
+        eval_dataset=dataset_val,
+        compute_metrics=compute_metrics,
+        model_init=model_init,
+        data_collator=collate_function,
+    )
+
+    best_trial = trainer.hyperparameter_search(
+        direction="maximize",
+        backend="wandb",
+        hp_space=wandb_hp_space,
+        n_trials=40,
+        compute_objective=compute_objective,
+    )
+    return best_trial
 
 def train_universal(model, dataset_steps, training_args_steps, model_description):
     model.to(device)
@@ -325,14 +357,28 @@ def train_baseline_bert(dataset_train, dataset_val, dataset_train_ub, dataset_va
         logging_strategy="epoch",
         push_to_hub=False
     )
-    model = train_universal(model,
-                            [(dataset_train, dataset_val, dataset_test_ub),
-                             (dataset_train_ub, dataset_val_ub, dataset_test_ub)],
-                            [training_args, training_args], "Baseline BERT (clinicalBERT)")
 
-    torch.save(model, "evaluation_results/baseline-bert-model-"+test_name+".pt")
+    model = hyper_parameter_search(lambda _: BaselineBERT(number_of_relations=number_of_relations, pooling_strategy='cls'),
+                                   dataset_train, dataset_val, dataset_test_ub, training_args, "Baseline BERT (clinicalBERT)")
+    # model = train_universal(model,
+    #                         [(dataset_train, dataset_val, dataset_test_ub),
+    #                          (dataset_train_ub, dataset_val_ub, dataset_test_ub)],
+    #                         [training_args, training_args], "Baseline BERT (clinicalBERT)")
+
+    torch.save(model, "evaluation_results/baseline-bert-model-hyper-"+test_name+".pt")
 
     return model
+
+def full_testing_scenario(model, dataset_name, learning_rate, weight_decay):
+    with open("evaluation_results/results.txt", "a") as myfile:
+        myfile.write("\tmodel: " + str(model) + "\n")
+        myfile.write("\tdataset: " + str(dataset_name) + "\n")
+        myfile.write("\tlr: " + str(learning_rate) + "\n")
+        myfile.write("\twd: " + str(weight_decay) + "\n")
+        myfile.flush()
+
+
+
 
 def train():
     with open("evaluation_results/results.txt", "a") as myfile:
@@ -360,7 +406,7 @@ def train():
     # test_gpt_model(None, dataset_val, None, None, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
 
 if __name__ == '__main__':
-    # train()
+    train()
     prepare_dataset_combination_graph(balanced=True, dataset="i2b2")
     # with open("evaluation_results/results.txt", "a") as myfile:
     #     myfile.write("\nTest " + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "\n")

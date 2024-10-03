@@ -5,10 +5,11 @@ from transformers import AutoTokenizer, AutoModel
 class GraphLanguageModel(nn.Module):
     def __init__(self, number_of_relations=3):
         super(GraphLanguageModel, self).__init__()
-        self.device = "cpu" # torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = "cpu"
+        # self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.number_of_relations = number_of_relations
-        modelcard = 'plenz/GLM-t5-large'
-        model_output_size = 1024
+        modelcard = 'plenz/GLM-t5-small'
+        model_output_size = 256
         self.model = AutoModel.from_pretrained(modelcard, trust_remote_code=True, revision='main')
         self.model.to(self.device)
         self.tokenizer = AutoTokenizer.from_pretrained(modelcard)
@@ -28,8 +29,7 @@ class GraphLanguageModel(nn.Module):
                              text=data["text"][i], how=self.mode)
             inputs.append(graph)
         model_inputs = self.model.data_processor.to_batch(
-            data_instances=inputs, tokenizer=self.tokenizer, max_seq_len=None,
-                                                     device=self.device)
+            data_instances=inputs, tokenizer=self.tokenizer, max_seq_len=None, device=self.device)
         outputs = self.model(**model_inputs)
         model_output = []
         for i in range(len(data["text_relations"])):
@@ -45,4 +45,6 @@ class GraphLanguageModel(nn.Module):
             model_output.append(output)
 
         x = self.linear(torch.stack(model_output))
-        return self.softmax(x)
+        x = self.softmax(x)
+        loss = self.criterion(x, labels)
+        return {"loss": loss, "logits": x}
