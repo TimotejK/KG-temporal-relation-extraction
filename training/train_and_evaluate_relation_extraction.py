@@ -1,4 +1,5 @@
 import os.path
+os.environ["WANDB_PROJECT"] = "relation-extraction-i2b2"
 from collections import Counter
 from datetime import datetime
 
@@ -24,6 +25,8 @@ from models.bimodal import MultiModalPrediction
 from models.knowledge_graph_encoder import GraphEncoder
 from models.text_encoder import EntityBERTtextEncoder
 
+
+results_file = "evaluation_results/results-test-battery.txt"
 
 def prepare_dataset_combination_graph(balanced=True, dataset="i2b2"):
     if dataset == "i2b2":
@@ -122,10 +125,10 @@ def hyper_parameter_search(model_init, dataset_train, dataset_val, dataset_test,
     )
 
     best_trial = trainer.hyperparameter_search(
-        direction="maximize",
+        direction="minimize",
         backend="wandb",
         hp_space=wandb_hp_space,
-        n_trials=40,
+        n_trials=10,
         compute_objective=compute_objective,
     )
     return best_trial
@@ -150,19 +153,19 @@ def train_universal(model, dataset_steps, training_args_steps, model_description
         trainer.train()
 
         results = trainer.evaluate(eval_dataset=dataset_val)
-        with open("evaluation_results/results.txt", "a") as myfile:
+        with open(results_file, "a") as myfile:
             myfile.write(model_description + " - midpoint results on eval:" + "\n")
             myfile.write(str(results) + "\n")
             myfile.flush()
 
     results = trainer.evaluate(eval_dataset=dataset_val)
-    with open("evaluation_results/results.txt", "a") as myfile:
+    with open(results_file, "a") as myfile:
         myfile.write(model_description + " - End results - validation:" + "\n")
         myfile.write(str(results) + "\n")
         myfile.flush()
 
     results = trainer.evaluate(eval_dataset=dataset_test)
-    with open("evaluation_results/results.txt", "a") as myfile:
+    with open(results_file, "a") as myfile:
         myfile.write(model_description + " - End results - test:" + "\n")
         myfile.write(str(results) + "\n")
         myfile.flush()
@@ -179,7 +182,7 @@ def train_graph(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, da
         per_device_train_batch_size=64,
         per_device_eval_batch_size=64,
         auto_find_batch_size=True,
-        num_train_epochs=50,
+        num_train_epochs=20,
         weight_decay=0.01,
         gradient_accumulation_steps=1,
         evaluation_strategy="epoch",
@@ -223,13 +226,13 @@ def test_gpt_model(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub,
         compute_metrics=compute_metrics
     )
     results = trainer.evaluate(eval_dataset=dataset_val)
-    with open("evaluation_results/results.txt", "a") as myfile:
+    with open(results_file, "a") as myfile:
         myfile.write("ChatGPT" + " - End results - val:" + "\n")
         myfile.write(str(results) + "\n")
         myfile.flush()
 
     results = trainer.evaluate(eval_dataset=dataset_test_ub)
-    with open("evaluation_results/results.txt", "a") as myfile:
+    with open(results_file, "a") as myfile:
         myfile.write("ChatGPT" + " - End results - test:" + "\n")
         myfile.write(str(results) + "\n")
         myfile.flush()
@@ -242,7 +245,7 @@ def test_baseline_model(dataset_train, dataset_val, dataset_train_ub, dataset_va
         classes = [int(a.y) for a in dataset.generated]
         number_of_most_common_apperances = Counter(classes).most_common(1)[0][1]
         accuracy = number_of_most_common_apperances / len(dataset.generated)
-        with open("evaluation_results/results.txt", "a") as myfile:
+        with open(results_file, "a") as myfile:
             myfile.write("Baseline" + " - balanced - val:" + "\n")
             myfile.write(str(accuracy) + "\n")
             myfile.flush()
@@ -252,7 +255,7 @@ def test_baseline_model(dataset_train, dataset_val, dataset_train_ub, dataset_va
         classes = [int(a.y) for a in dataset.generated]
         number_of_most_common_apperances = Counter(classes).most_common(1)[0][1]
         accuracy = number_of_most_common_apperances / len(dataset.generated)
-        with open("evaluation_results/results.txt", "a") as myfile:
+        with open(results_file, "a") as myfile:
             myfile.write("Baseline" + " - unbalanced - val:" + "\n")
             myfile.write(str(accuracy) + "\n")
             myfile.flush()
@@ -262,7 +265,7 @@ def test_baseline_model(dataset_train, dataset_val, dataset_train_ub, dataset_va
         classes = [int(a.y) for a in dataset.generated]
         number_of_most_common_apperances = Counter(classes).most_common(1)[0][1]
         accuracy = number_of_most_common_apperances / len(dataset.generated)
-        with open("evaluation_results/results.txt", "a") as myfile:
+        with open(results_file, "a") as myfile:
             myfile.write("Baseline" + " - unbalanced - test:" + "\n")
             myfile.write(str(accuracy) + "\n")
             myfile.flush()
@@ -297,17 +300,22 @@ def train_bimodal(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, 
 
     training_args = TrainingArguments(
         output_dir="./results-bimodal",
-        learning_rate=0.001,
+        # learning_rate=0.001,
+        learning_rate=0.000955,
         per_device_train_batch_size=16,
         per_device_eval_batch_size=16,
         auto_find_batch_size=True,
         num_train_epochs=50,
-        weight_decay=0.0001,
+        # weight_decay=0.0001,
+        weight_decay=0.000031,
         gradient_accumulation_steps=1,
         evaluation_strategy="epoch",
         logging_strategy="epoch",
         push_to_hub=False
     )
+
+    # model = hyper_parameter_search(lambda _: BaselineBERT(number_of_relations=number_of_relations, pooling_strategy='cls'),
+    #                                dataset_train, dataset_val, dataset_test_ub, training_args, "Bimodal BERT")
 
     model = train_universal(model,
                             [(dataset_train, dataset_val, dataset_test_ub), (dataset_train_ub, dataset_val_ub, dataset_test_ub)],
@@ -321,12 +329,14 @@ def train_text(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dat
 
     training_args = TrainingArguments(
         output_dir="./results-text",
-        learning_rate=0.0001,
+        # learning_rate=0.0001,
+        learning_rate=0.000955,
         per_device_train_batch_size=16,
         per_device_eval_batch_size=16,
         auto_find_batch_size=True,
         num_train_epochs=50,
-        weight_decay=0.0001,
+        # weight_decay=0.0001,
+        weight_decay=0.000031,
         gradient_accumulation_steps=1,
         evaluation_strategy="epoch",
         logging_strategy="epoch",
@@ -346,31 +356,33 @@ def train_baseline_bert(dataset_train, dataset_val, dataset_train_ub, dataset_va
 
     training_args = TrainingArguments(
         output_dir="./results-baselineBERT",
-        learning_rate=0.0001,
+        # learning_rate=0.0001,
+        learning_rate=0.000955,
         per_device_train_batch_size=16,
         per_device_eval_batch_size=16,
         auto_find_batch_size=True,
         num_train_epochs=50,
-        weight_decay=0.0001,
+        # weight_decay=0.0001,
+        weight_decay=0.000031,
         gradient_accumulation_steps=1,
         evaluation_strategy="epoch",
         logging_strategy="epoch",
         push_to_hub=False
     )
 
-    model = hyper_parameter_search(lambda _: BaselineBERT(number_of_relations=number_of_relations, pooling_strategy='cls'),
-                                   dataset_train, dataset_val, dataset_test_ub, training_args, "Baseline BERT (clinicalBERT)")
-    # model = train_universal(model,
-    #                         [(dataset_train, dataset_val, dataset_test_ub),
-    #                          (dataset_train_ub, dataset_val_ub, dataset_test_ub)],
-    #                         [training_args, training_args], "Baseline BERT (clinicalBERT)")
+    # model = hyper_parameter_search(lambda _: BaselineBERT(number_of_relations=number_of_relations, pooling_strategy='cls'),
+    #                                dataset_train, dataset_val, dataset_test_ub, training_args, "Baseline BERT (clinicalBERT)")
+    model = train_universal(model,
+                            [(dataset_train, dataset_val, dataset_test_ub),
+                             (dataset_train_ub, dataset_val_ub, dataset_test_ub)],
+                            [training_args, training_args], "Baseline BERT (clinicalBERT)")
 
     torch.save(model, "evaluation_results/baseline-bert-model-hyper-"+test_name+".pt")
 
     return model
 
 def full_testing_scenario(model, dataset_name, learning_rate, weight_decay):
-    with open("evaluation_results/results.txt", "a") as myfile:
+    with open(results_file, "a") as myfile:
         myfile.write("\tmodel: " + str(model) + "\n")
         myfile.write("\tdataset: " + str(dataset_name) + "\n")
         myfile.write("\tlr: " + str(learning_rate) + "\n")
@@ -381,7 +393,7 @@ def full_testing_scenario(model, dataset_name, learning_rate, weight_decay):
 
 
 def train():
-    with open("evaluation_results/results.txt", "a") as myfile:
+    with open(results_file, "a") as myfile:
         myfile.write("\nTest " + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "\n")
         myfile.flush()
 
@@ -397,18 +409,18 @@ def train():
     else:
         number_of_relations = 3
 
-    # train_glm(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
-    # graph_model = train_graph(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
-    # bimodal_model = train_bimodal(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, graph_model, number_of_relations=number_of_relations, test_name=test_name)
-    # text_model = train_text(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
+    graph_model = train_graph(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
+    bimodal_model = train_bimodal(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, graph_model, number_of_relations=number_of_relations, test_name=test_name)
+    text_model = train_text(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
     train_baseline_bert(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
-    # test_baseline_model(None, dataset_val, None, None, dataset_test_ub, test_name=test_name)
-    # test_gpt_model(None, dataset_val, None, None, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
+    test_baseline_model(None, dataset_val, None, None, dataset_test_ub, test_name=test_name)
+    test_gpt_model(None, dataset_val, None, None, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
+    train_glm(dataset_train, dataset_val, dataset_train_ub, dataset_val_ub, dataset_test_ub, number_of_relations=number_of_relations, test_name=test_name)
 
 if __name__ == '__main__':
     train()
     prepare_dataset_combination_graph(balanced=True, dataset="i2b2")
-    # with open("evaluation_results/results.txt", "a") as myfile:
+    # with open(results_file, "a") as myfile:
     #     myfile.write("\nTest " + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "\n")
     #     myfile.flush()
     dataset_train, dataset_val, dataset_test_ub = load_stored_dataset_combination_graph(balanced=True)
