@@ -55,6 +55,7 @@ class DFDataset(Dataset):
         return new_list
 
     def oversample_pregenerated(self):
+        random.seed(42)
         if self.generated is None:
             print("Error: data needs to be pregenerated")
             return

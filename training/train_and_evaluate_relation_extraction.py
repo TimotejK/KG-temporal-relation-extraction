@@ -393,12 +393,13 @@ def full_testing_scenario(model, dataset_name, learning_rate, weight_decay):
 
 
 def train():
+    test_name = "thyme"
+    # test_name = "i 2b2"
+
     with open(results_file, "a") as myfile:
         myfile.write("\nTest " + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "\n")
+        myfile.write("\nDataset: " + test_name + "\n")
         myfile.flush()
-
-    # test_name = "thyme"
-    test_name = "i2b2"
 
     # dataset_train, dataset_val, dataset_test = prepare_dataset_combination_graph(balanced=True, dataset="thyme")
     dataset_train, dataset_val, _ = load_stored_dataset_combination_graph(balanced=True, dataset=test_name)
