@@ -300,18 +300,22 @@ def generate_combination_graph(**kwargs):
 
 def create_knowledge_graph_dataset(dataframe, graph_generation_function, **kwargs):
     def convert_row_to_graph(row, graph_generation_function, kwargs):
-        classification_graph = graph_generation_function(row=row, **kwargs)
-        if classification_graph is None:
+        try:
+            classification_graph = graph_generation_function(row=row, **kwargs)
+            if classification_graph is None:
+                return None
+            # use convert row
+            row = window_row_entity_bert(row)
+            if row is None:
+                return None
+            classification_graph["text"], classification_graph["event1_start"], classification_graph["event1_end"], classification_graph["event2_start"], classification_graph["event2_end"] \
+                = add_event_tokens(row["text"], row["event1_start"], row["event1_end"], row["event2_start"], row["event2_end"])
+            if "graph_post_processing" in kwargs:
+                classification_graph = kwargs["graph_post_processing"](classification_graph, **kwargs)
+            return classification_graph
+        except Exception as err:
+            print("Something went wrong ", err)
             return None
-        # use convert row
-        row = window_row_entity_bert(row)
-        if row is None:
-            return None
-        classification_graph["text"], classification_graph["event1_start"], classification_graph["event1_end"], classification_graph["event2_start"], classification_graph["event2_end"] \
-            = add_event_tokens(row["text"], row["event1_start"], row["event1_end"], row["event2_start"], row["event2_end"])
-        if "graph_post_processing" in kwargs:
-            classification_graph = kwargs["graph_post_processing"](classification_graph, **kwargs)
-        return classification_graph
 
     return DFDataset(dataframe, lambda row, args: convert_row_to_graph(row, graph_generation_function, args), kwargs)
 
