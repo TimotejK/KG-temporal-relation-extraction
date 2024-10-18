@@ -110,7 +110,7 @@ def construct_dataset_with_graphs(text, dataframe, patient_id):
     local_kg = construct_graph_from_text_only(dataframe, configuration, dataset_type="train")
     dataset = create_knowledge_graph_dataset(dataframe, generate_fast_combination_graph, configuration=configuration,
                                     local_graph=local_kg, cache_only=False, insert_time_nodes=True,
-                                    graph_post_processing=add_stored_data_to_kg, patient_id=patient_id)
+                                    graph_post_processing=add_stored_data_to_kg, patient_id=patient_id, relation_types=relation_types)
     dataset.pregenerate_and_filter()
     print(dataset)
     return dataset
@@ -137,7 +137,7 @@ patient_graphs = {}
 global_graph = {}
 def compute_event_pair_key(event1, event2):
     return (event1, event2)
-def add_stored_data_to_kg(graph, patient_id):
+def add_stored_data_to_kg(graph, patient_id, **kwargs):
     global patient_graphs, global_graph
     event1 = graph.text[graph.event1_start: graph.event1_end]
     event2 = graph.text[graph.event2_start: graph.event2_end]
