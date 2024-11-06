@@ -221,11 +221,37 @@ def get_sentences_from_test_set_i2b2():
         all_relations.append(relations_per_sentence)
     return all_documents, all_sentences, all_relations
 
-def analyze_document(text, patient_id):
+
+def most_simmilar_event_expanded(event_list :list[tuple[int, int, str]], event_target):
+    min_difference = -1
+    best_match = None
+    for e in event_list:
+        dif = -1
+        event_text = e[2]
+        if event_text in event_target:
+            dif = len(event_target) - len(event_text)
+        if event_target in event_text:
+            dif = len(event_text) - len(event_target)
+        if dif >= 0 and (min_difference < 0 or min_difference > dif):
+            min_difference = dif
+            best_match = e
+    return best_match
+
+def analyze_document(text, patient_id, event_pairs_of_interest=None):
     events = extract_events(text)
     print("Events:")
     print(events)
-    event_pairs = generate_event_pairs(text, events)
+    if event_pairs_of_interest is None:
+        event_pairs = generate_event_pairs(text, events)
+    else:
+        event_pairs = []
+        for e1, e2 in event_pairs_of_interest:
+            e1 = most_simmilar_event_expanded(events, e1)
+            e2 = most_simmilar_event_expanded(events, e2)
+            if e1 is not None and e2 is not None:
+                event_pairs.append((e1, e2))
+    print("Pairs (" + str(len(event_pairs)) + "):")
+    print(event_pairs)
     dataframe = construct_basic_dataframe(text, event_pairs, 0)
     dataset = construct_dataset_with_graphs(text, dataframe, patient_id)
     relations = predict_temporal_relations(dataset)

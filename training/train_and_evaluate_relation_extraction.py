@@ -1,9 +1,12 @@
 import gc
 import os.path
+
+from pipeline import pipeline_evaluation
+
 os.environ["WANDB_PROJECT"] = "relation-extraction-i2b2"
 from collections import Counter
 from datetime import datetime
-
+from torch_geometric.loader import DataLoader
 import numpy as np
 import evaluate
 import torch
@@ -420,11 +423,23 @@ def full_testing_scenario(model, dataset_name, learning_rate, weight_decay):
         myfile.flush()
 
 
+def predict():
+    test_name = "i2b2"
+    _, _, dataset_test = load_stored_dataset_combination_graph(balanced=False, dataset=test_name)
+    model = torch.load("evaluation_results/bimodal-model-" + test_name + ".pt")
 
+    dataset_test.generated = list(filter(lambda x: x is not None, map(window_text, dataset_test.generated)))
+    dataLoader = DataLoader(dataset_test, batch_size=1)
+    for graph in dataLoader:
+        prediction = model(graph, graph.y)
 
 def train():
+    pipeline_evaluation.evaluate()
+
+    return
+
     test_name = "thyme"
-    # test_name = "i 2b2"
+    # test_name = "i2b2"
 
     with open(results_file, "a") as myfile:
         myfile.write("\nTest " + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "\n")
