@@ -2,9 +2,9 @@ import torch
 from torch import nn
 from transformers import AutoModel, AutoTokenizer
 
-class EntityBERTtextEncoder(nn.Module):
-    def __init__(self, number_of_relations=3, dropout=0.2, deeper_network=False, pooling_strategy='cls'):
-        super(EntityBERTtextEncoder, self).__init__()
+class RelationDetector(nn.Module):
+    def __init__(self, number_of_relations=2, dropout=0.2, deeper_network=False, pooling_strategy='cls'):
+        super(RelationDetector, self).__init__()
         self.EntityBert = AutoModel.from_pretrained("./pretrained models/PubmedBERTbase-MimicBig-EntityBERT")
         self.tokenizer = AutoTokenizer.from_pretrained("./pretrained models/PubmedBERTbase-MimicBig-EntityBERT")
         self.pooling_strategy = pooling_strategy
@@ -37,7 +37,7 @@ class EntityBERTtextEncoder(nn.Module):
             bert_output = x['last_hidden_state'][:, 0, :]
         elif self.pooling_strategy == 'pool':
             bert_output = x['pooler_output']
-        else:
+        elif self.pooling_strategy == 'both_events':
             bert_output = []
             for i, layer in enumerate(x['last_hidden_state']):
                 event1_emb = x['last_hidden_state'][i][
