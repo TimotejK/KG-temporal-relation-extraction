@@ -110,22 +110,6 @@ def evaluate():
             event_pairs.append((g[0], g[2]))
         return list(event_pairs)
 
-    def predict_temporal_relations(dataset):
-        human_readable_predictions = []
-        device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        model = torch.load("best-models/bimodal-model-i2b2.pt", map_location=device)
-
-        loader = DataLoader(dataset, batch_size=16)
-        for batch in loader:
-            batch.to(device)
-            labels = batch.y
-            result = model(data=batch, labels=labels)
-            predictions = np.argmax(result["predictions"].cpu().detach().numpy(), axis=1)
-            for i in range(len(batch["text"])):
-                event1 = batch["event1_oroginal_position"][i]
-                event2 = batch["event2_oroginal_position"][i]
-                human_readable_predictions.append((event1, relation_types[predictions[i]], event2))
-        return human_readable_predictions
 
     def analyze_document(text, patient_id, event_pairs_of_interest=None):
         events = extract_events(text)
@@ -201,10 +185,8 @@ def evaluate():
         graph = add_transitive(graph)
         return graph
 
-    f = open("demofile2.txt", "a")
+    f = open("end-to-end-pipeline-results.txt", "a")
     for patient_ind, example in enumerate(dataset):
-        # if patient_ind < 100:
-        #     continue
         print(str(patient_ind) + "/" + str(len(dataset)))
         event_pairs_of_interest = get_event_pairs_of_interest(example)
         graph_predicted = analyze_document(example["text"], patient_ind,
@@ -212,8 +194,6 @@ def evaluate():
         graph_predicted = [(tuple(triplet[0]), triplet[1], tuple(triplet[2])) for triplet in graph_predicted]
         graph1 = example["graph"]
         graph2 = graph_predicted
-        precision, recall, f1, system_gold_plus, system_plus_gold, our_len, gold_len = compute_f1(graph2, graph1)
-
         correct, incorrect, missing, too_much = compare_graphs(graph1, graph2)
         f.write(str(patient_ind))
         f.write(", ")
@@ -227,9 +207,9 @@ def evaluate():
         f.write(str(too_much))
         f.write(", ")
 
-        graph1 = graph_closure([x for x in graph1])
-        graph2 = graph_closure([x for x in graph2])
-        correct, incorrect, missing, too_much = compare_graphs(graph1, graph2)
+        graph1_c = graph_closure(graph1)
+        graph2_c = graph_closure(graph2)
+        correct, incorrect, missing, too_much = compare_graphs(graph1_c, graph2_c)
         f.write(str(correct))
         f.write(", ")
         f.write(str(incorrect))
@@ -238,15 +218,22 @@ def evaluate():
         f.write(", ")
         f.write(str(too_much))
 
+        # p, r, f1, system_gold_plus, system_plus_gold, our_len, gold_len
+        system_gold_plus, _, _, _ = compare_graphs(graph1_c, graph2)
+        system_plus_gold, _, _, _ = compare_graphs(graph1, graph2_c)
+        our_len = len(graph2)
+        gold_len = len(graph1)
+        p = system_gold_plus / our_len
+        r = system_plus_gold / gold_len
+        f1 = 2 * p * r / (p + r)
 
         f.write(", ")
-        f.write(str(precision))
+        f.write(str(p))
         f.write(", ")
-        f.write(str(recall))
+        f.write(str(r))
         f.write(", ")
         f.write(str(f1))
         f.write(", ")
-
         f.write(str(system_gold_plus))
         f.write(", ")
         f.write(str(system_plus_gold))
@@ -254,6 +241,7 @@ def evaluate():
         f.write(str(our_len))
         f.write(", ")
         f.write(str(gold_len))
+
         f.write("\n")
         f.flush()
     f.close()

@@ -1,90 +1,27 @@
 import gc
 import os.path
 
-from pipeline import pipeline_evaluation
+from custom_datasets.negative_example_generation import add_null_relations
 
-os.environ["WANDB_PROJECT"] = "relation-extraction-i2b2"
+os.environ["WANDB_PROJECT"] = "relation-detection-extraction-i2b2"
 from collections import Counter
 from datetime import datetime
-from torch_geometric.loader import DataLoader
 import numpy as np
 import evaluate
 import torch
-from torch_geometric.data import DataLoader
+from torch_geometric.data import DataLoader, Data
 from transformers import Trainer, TrainingArguments
-import cryptpandas as crp
 
-from custom_datasets.common import split_data, get_configuration_for_building_local_graph
-from custom_datasets.combining_data import read_i2b2, window_row_entity_bert
-from custom_datasets.dataframe_dataset import DFDataset
-from custom_datasets.error_correction import fix_precomputed_dataset, generate_edge_embedding
-from custom_datasets.knowledge_graph_dataset import create_knowledge_graph_dataset, \
-    generate_llm_graph_for_event, generate_combination_graph, generate_relation_graph_llm, \
-    generate_fast_combination_graph
-from graph_building.local_graph.build_local_patient_graph import construct_graph_from_text_only
+from custom_datasets.combining_data import window_row_entity_bert
 from models.BaselineBERT import BaselineBERT
 from models.GraphLanguageModel import GraphLanguageModel
 from models.baselines.GPTmodel import GPTTemporalRelationExtraction
 from models.bimodal import MultiModalPrediction
 from models.knowledge_graph_encoder import GraphEncoder
 from models.text_encoder import EntityBERTtextEncoder
+from training.train_and_evaluate_relation_extraction import load_stored_dataset_combination_graph
 
-
-results_file = "evaluation_results/results-test-battery.txt"
-
-def prepare_dataset_combination_graph(balanced=True, dataset="i2b2"):
-    if dataset == "i2b2":
-        relation_types = ["BEFORE", "AFTER", "OVERLAP"]
-        df = read_i2b2(full_text=True, use_test_files=False, include_rows_without_absolute=True)
-        df_test = read_i2b2(full_text=True, use_test_files=True, include_rows_without_absolute=True)
-    elif dataset == "thyme":
-        relation_types = ['BEFORE', 'AFTER', 'OVERLAP', 'BEGINS-ON', 'CONTAINED-BY', 'CONTAINS', 'ENDS-ON', 'CONTINUES', 'TERMINATES', 'INITIATES', 'REINITIATES']
-        df = crp.read_encrypted(path='thyme.crypt', password=os.environ['TP'])
-        df_test = crp.read_encrypted(path='thyme_test.crypt', password=os.environ['TP'])
-    df_train, df_val, df_val2 = split_data(df, oversample=False, label_name='class', train_size=0.7, val_size=0.2, split_by_documents=True)
-    configuration = get_configuration_for_building_local_graph()
-
-    patient_graphs_train = construct_graph_from_text_only(df_train, configuration, dataset_type="train")
-    patient_graphs_val = construct_graph_from_text_only(df_val, configuration, dataset_type="val")
-    patient_graphs_test = construct_graph_from_text_only(df_test, configuration, dataset_type="test")
-
-    dataset_val = create_knowledge_graph_dataset(df_val, generate_fast_combination_graph, configuration=configuration,
-                                                   local_graph=patient_graphs_val, cache_only=False, insert_time_nodes=True, relation_types=relation_types)
-    dataset_train = create_knowledge_graph_dataset(df_train, generate_fast_combination_graph, configuration=configuration,
-                                                   local_graph=patient_graphs_train, cache_only=False, insert_time_nodes=True, relation_types=relation_types)
-    dataset_test = create_knowledge_graph_dataset(df_test, generate_fast_combination_graph, configuration=configuration,
-                                                   local_graph=patient_graphs_test, cache_only=False, insert_time_nodes=True, relation_types=relation_types)
-
-    dataset_train.pregenerate_and_filter()
-    dataset_train.save("pregenerated/"+dataset+"_dataset_train_rawkg.pt")
-    dataset_val.pregenerate_and_filter()
-    dataset_val.save("pregenerated/"+dataset+"_dataset_val_rawkg.pt")
-    dataset_test.pregenerate_and_filter()
-    dataset_test.save("pregenerated/"+dataset+"_dataset_test_rawkg.pt")
-
-    if balanced:
-        dataset_train.oversample_pregenerated()
-        dataset_val.oversample_pregenerated()
-
-    return dataset_train, dataset_val, dataset_test
-
-def load_stored_dataset_combination_graph(balanced=True, dataset="i2b2", add_null_relations=False):
-    dataset_train = DFDataset()
-    dataset_train.load("pregenerated/"+dataset+"_dataset_train_rawkg.pt")
-    dataset_val = DFDataset()
-    dataset_val.load("pregenerated/"+dataset+"_dataset_val_rawkg.pt")
-    dataset_test = DFDataset()
-    dataset_test.load("pregenerated/"+dataset+"_dataset_test_rawkg.pt")
-
-    if add_null_relations:
-        dataset_train.add_null_relations()
-        dataset_val.add_null_relations()
-
-    if balanced:
-        dataset_train.oversample_pregenerated()
-        dataset_val.oversample_pregenerated()
-
-    return dataset_train, dataset_val, dataset_test
+results_file = "evaluation_results_no_relation/results-test-battery.txt"
 
 def collate_function(examples):
     loader = DataLoader(examples, batch_size=len(examples))
@@ -143,17 +80,24 @@ def hyper_parameter_search(model_init, dataset_train, dataset_val, dataset_test,
 
 def train_universal(model, dataset_steps, training_args_steps, model_description):
     model.to(device)
+    datasets_created = False
     for i in range(len(dataset_steps)):
+        if dataset_steps[i] is None:
+            continue
         # free memory from previous step
-        del dataset_train
-        del dataset_val
-        del dataset_test
-        gc.collect()
+        if datasets_created:
+            del dataset_train
+            del dataset_val
+            del dataset_test
+            gc.collect()
+            datasets_created = False
 
-        if type(dataset_steps[i]) is tuple:
+        datasets_created = True
+        if type(dataset_steps[i]) is tuple or type(dataset_steps[i]) is list:
             dataset_train, dataset_val, dataset_test = dataset_steps[i]
         else:
-            dataset_train, dataset_val, dataset_test = dataset_steps()
+            print("running the dataset provider")
+            dataset_train, dataset_val, dataset_test = dataset_steps[i]()
         dataset_train.generated = list(filter(lambda x: x is not None, map(window_text, dataset_train.generated)))
         dataset_val.generated = list(filter(lambda x: x is not None, map(window_text, dataset_val.generated)))
         dataset_test.generated = list(filter(lambda x: x is not None, map(window_text, dataset_test.generated)))
@@ -194,7 +138,10 @@ def train_universal(model, dataset_steps, training_args_steps, model_description
     return model
 
 def train_graph(dataset_loader_balanced, dataset_loader_unbalanced, number_of_relations, test_name):
-    model = GraphEncoder(node_size=768, edge_size=768 + 7, number_of_relations=number_of_relations, dropout=0.2)
+    model_bigger = GraphEncoder(node_size=768, edge_size=768 + 7, number_of_relations=number_of_relations, dropout=0.2)
+    model = torch.load("best-models/graph_encoder-" + test_name + ".pt")
+    model.post_mp = model_bigger.post_mp
+    del model_bigger
 
     model.to(device)
 
@@ -216,7 +163,7 @@ def train_graph(dataset_loader_balanced, dataset_loader_unbalanced, number_of_re
                             [dataset_loader_balanced, dataset_loader_unbalanced],
                             [training_args, training_args], "Graph")
 
-    torch.save(model, "evaluation_results/graph_encoder-"+test_name+".pt")
+    torch.save(model, "evaluation_results_no_relation/graph_encoder-"+test_name+".pt")
 
     return model
 
@@ -333,7 +280,7 @@ def train_glm(dataset_loader_balanced, dataset_loader_unbalanced, number_of_rela
                             [dataset_loader_balanced, dataset_loader_unbalanced],
                             [training_args, training_args], "GLM model")
 
-    torch.save(model, "evaluation_results/gml-model-"+test_name+".pt")
+    torch.save(model, "evaluation_results_no_relation/gml-model-"+test_name+".pt")
     return model
 
 def train_bimodal(dataset_loader_balanced, dataset_loader_unbalanced, graph_model, number_of_relations, test_name):
@@ -360,11 +307,13 @@ def train_bimodal(dataset_loader_balanced, dataset_loader_unbalanced, graph_mode
                             [dataset_loader_balanced, dataset_loader_unbalanced],
                             [training_args, training_args], "Bimodal")
 
-    torch.save(model, "evaluation_results/bimodal-model-"+test_name+".pt")
+    torch.save(model, "evaluation_results_no_relation/bimodal-model-"+test_name+".pt")
     return model
 
 def train_text(dataset_loader_balanced, dataset_loader_unbalanced, number_of_relations, test_name):
-    model = EntityBERTtextEncoder(number_of_relations=number_of_relations, pooling_strategy='both_events')
+    model_bigger = EntityBERTtextEncoder(number_of_relations=number_of_relations, pooling_strategy='both_events')
+    model = torch.load("best-models/graph_encoder-" + test_name + ".pt")
+    model.post_layers = model_bigger.post_layers
 
     training_args = TrainingArguments(
         output_dir="./results-text",
@@ -385,7 +334,7 @@ def train_text(dataset_loader_balanced, dataset_loader_unbalanced, number_of_rel
                             [dataset_loader_balanced, dataset_loader_unbalanced],
                             [training_args, training_args], "Text")
 
-    torch.save(model, "evaluation_results/text-model-"+test_name+".pt")
+    torch.save(model, "evaluation_results_no_relation/text-model-"+test_name+".pt")
 
     return model
 
@@ -414,7 +363,7 @@ def train_baseline_bert(dataset_loader_balanced, dataset_loader_unbalanced, numb
                             [dataset_loader_balanced, dataset_loader_unbalanced],
                             [training_args, training_args], "Baseline BERT (clinicalBERT)")
 
-    torch.save(model, "evaluation_results/baseline-bert-model-hyper-"+test_name+".pt")
+    torch.save(model, "evaluation_results_no_relation/baseline-bert-model-hyper-"+test_name+".pt")
 
     return model
 
@@ -430,7 +379,7 @@ def full_testing_scenario(model, dataset_name, learning_rate, weight_decay):
 def predict():
     test_name = "i2b2"
     _, _, dataset_test = load_stored_dataset_combination_graph(balanced=False, dataset=test_name)
-    model = torch.load("evaluation_results/bimodal-model-" + test_name + ".pt")
+    model = torch.load("evaluation_results_no_relation/bimodal-model-" + test_name + ".pt")
 
     dataset_test.generated = list(filter(lambda x: x is not None, map(window_text, dataset_test.generated)))
     dataLoader = DataLoader(dataset_test, batch_size=1)
@@ -438,38 +387,57 @@ def predict():
         prediction = model(graph, graph.y)
 
 def train():
-    pipeline_evaluation.evaluate()
-
-    return
-
-    test_name = "thyme"
-    # test_name = "i2b2"
-
+    test_name = "i2b2"
+    print("Start training")
     with open(results_file, "a") as myfile:
         myfile.write("\nTest " + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "\n")
         myfile.write("\nDataset: " + test_name + "\n")
         myfile.flush()
 
-    dataset_loader_balanced = lambda: load_stored_dataset_combination_graph(balanced=True, dataset=test_name)
-    dataset_loader_unbalanced = lambda: load_stored_dataset_combination_graph(balanced=False, dataset=test_name)
+    # dataset_loader_balanced = lambda: [add_null_relations(x) for x in load_stored_dataset_combination_graph(balanced=True, dataset=test_name)]
+    dataset_loader_balanced = load_stored_dataset_combination_graph(balanced=True, dataset=test_name)
+    dataset_loader_unbalanced = load_stored_dataset_combination_graph(balanced=False, dataset=test_name)
+    # prune dataset to conserve memory
+
+    for loader in [dataset_loader_balanced, dataset_loader_unbalanced]:
+        for set in loader:
+            new_generated = []
+            for i in range(len(set.generated)):
+                data = Data(
+                    x=set.generated[i].x.detach().to(torch.float16),
+                    y=set.generated[i].y,
+                    edge_index=set.generated[i].edge_index,
+                    edge_attr=set.generated[i].edge_attr.detach().to(torch.float16),
+                    event1_index=set.generated[i].event1_index, event2_index=set.generated[i].event2_index,
+                    text=set.generated[i].text,
+                    event1_start=set.generated[i].event1_start,
+                    event2_start=set.generated[i].event2_start,
+                    event1_end=set.generated[i].event1_end,
+                    event2_end=set.generated[i].event2_end)
+                set.generated[i] = None
+                new_generated.append(data)
+            del set.generated
+            set.generated = new_generated
+            gc.collect()
+
+        for set in loader:
+            add_null_relations(set)
 
     if test_name == "thyme":
         number_of_relations = 11 # imamo relacije 0, 2, 3, 5, 6, 7, 8, 9, 10
     else:
         number_of_relations = 3
 
+    # because we added the null relation
+    number_of_relations += 1
+
     graph_model = train_graph(dataset_loader_balanced, dataset_loader_unbalanced, number_of_relations=number_of_relations, test_name=test_name)
     bimodal_model = train_bimodal(dataset_loader_balanced, dataset_loader_unbalanced, graph_model, number_of_relations=number_of_relations, test_name=test_name)
     text_model = train_text(dataset_loader_balanced, dataset_loader_unbalanced, number_of_relations=number_of_relations, test_name=test_name)
-    train_baseline_bert(dataset_loader_balanced, dataset_loader_unbalanced, number_of_relations=number_of_relations, test_name=test_name)
-    test_baseline_model(dataset_loader_balanced, dataset_loader_unbalanced, test_name=test_name)
-    test_gpt_model(dataset_loader_balanced, dataset_loader_unbalanced, number_of_relations=number_of_relations, test_name=test_name)
-    train_glm(dataset_loader_balanced, dataset_loader_unbalanced, number_of_relations=number_of_relations, test_name=test_name)
+    # train_baseline_bert(dataset_loader_balanced, dataset_loader_unbalanced, number_of_relations=number_of_relations, test_name=test_name)
+    # test_baseline_model(dataset_loader_balanced, dataset_loader_unbalanced, test_name=test_name)
+    # test_gpt_model(dataset_loader_balanced, dataset_loader_unbalanced, number_of_relations=number_of_relations, test_name=test_name)
+    # train_glm(dataset_loader_balanced, dataset_loader_unbalanced, number_of_relations=number_of_relations, test_name=test_name)
 
 if __name__ == '__main__':
     train()
-    prepare_dataset_combination_graph(balanced=True, dataset="i2b2")
-    # with open(results_file, "a") as myfile:
-    #     myfile.write("\nTest " + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "\n")
-    #     myfile.flush()
-    # test_gpt_model(None, dataset_val, None, None, dataset_test_ub)
