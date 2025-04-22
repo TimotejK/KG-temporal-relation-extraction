@@ -144,16 +144,17 @@ def hyper_parameter_search(model_init, dataset_train, dataset_val, dataset_test,
 def train_universal(model, dataset_steps, training_args_steps, model_description):
     model.to(device)
     for i in range(len(dataset_steps)):
-        # free memory from previous step
-        del dataset_train
-        del dataset_val
-        del dataset_test
-        gc.collect()
+        if i > 0:
+            # free memory from previous step
+            del dataset_train
+            del dataset_val
+            del dataset_test
+            gc.collect()
 
         if type(dataset_steps[i]) is tuple:
             dataset_train, dataset_val, dataset_test = dataset_steps[i]
         else:
-            dataset_train, dataset_val, dataset_test = dataset_steps()
+            dataset_train, dataset_val, dataset_test = dataset_steps[i]()
         dataset_train.generated = list(filter(lambda x: x is not None, map(window_text, dataset_train.generated)))
         dataset_val.generated = list(filter(lambda x: x is not None, map(window_text, dataset_val.generated)))
         dataset_test.generated = list(filter(lambda x: x is not None, map(window_text, dataset_test.generated)))
@@ -438,12 +439,11 @@ def predict():
         prediction = model(graph, graph.y)
 
 def train():
-    pipeline_evaluation.evaluate()
+    # pipeline_evaluation.evaluate()
+    # return
 
-    return
-
-    test_name = "thyme"
-    # test_name = "i2b2"
+    # test_name = "thyme"
+    test_name = "i2b2"
 
     with open(results_file, "a") as myfile:
         myfile.write("\nTest " + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "\n")
@@ -468,7 +468,7 @@ def train():
 
 if __name__ == '__main__':
     train()
-    prepare_dataset_combination_graph(balanced=True, dataset="i2b2")
+    # prepare_dataset_combination_graph(balanced=True, dataset="i2b2")
     # with open(results_file, "a") as myfile:
     #     myfile.write("\nTest " + datetime.today().strftime('%Y-%m-%d %H:%M:%S') + "\n")
     #     myfile.flush()

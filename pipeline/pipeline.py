@@ -224,7 +224,7 @@ def construct_dataset_no_graph(text, dataframe, patient_id):
     return dataset
 
 relation_types = ["BEFORE", "AFTER", "OVERLAP"]
-def predict_temporal_relations(dataset, relation_detection_method:Literal["none", "shared", "separate"]="none"):
+def predict_temporal_relations(dataset, relation_detection_method:Literal["none", "shared", "separate"]="none", args=None):
     human_readable_predictions = []
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     if relation_detection_method == "separate":
@@ -232,7 +232,10 @@ def predict_temporal_relations(dataset, relation_detection_method:Literal["none"
     if relation_detection_method == "shared":
         model = torch.load("best-models/bimodal-model-i2b2-norelation.pt", map_location=device)
     else:
-        model = torch.load("best-models/bimodal-model-i2b2.pt", map_location=device)
+        if args.relation_model == "bimodal":
+            model = torch.load("best-models/bimodal-model-i2b2.pt", map_location=device)
+        elif args.relation_model == "bimodal_transitive":
+            model = torch.load("old-models/Transitive_relation_extraction.pt", map_location=device)
 
     loader = DataLoader(dataset, batch_size=16)
     for batch in loader:
@@ -242,16 +245,22 @@ def predict_temporal_relations(dataset, relation_detection_method:Literal["none"
             relation_detection = relation_detection_model(data=batch, labels=labels)
             predictions_relation_detection = np.argmax(relation_detection["logits"].detach().cpu(), axis=1)
             pass
-        result = model(data=batch, labels=labels)
-        predictions = np.argmax(result["predictions"].cpu().detach().numpy(), axis=1)
+        if args.relation_model == "bimodal_transitive":
+            result = model(data=batch, return_embedding=False)
+            predictions = np.argmax(result.cpu().detach().numpy(), axis=1)
+            confidence = [[float(x) for x in p] for p in result.cpu().detach().numpy()]
+        else:
+            result = model(data=batch, labels=labels)
+            predictions = np.argmax(result["predictions"].cpu().detach().numpy(), axis=1)
+            confidence = [[float(x) for x in p] for p in result["predictions"].cpu().detach().numpy()]
         for i in range(len(batch["text"])):
             event1 = batch["event1_oroginal_position"][i]
             event2 = batch["event2_oroginal_position"][i]
             if predictions[i] < len(relation_types):
                 if relation_detection_method == "separate":
-                    human_readable_predictions.append((event1, relation_types[predictions[i]], event2, predictions_relation_detection[i]))
+                    human_readable_predictions.append((event1, relation_types[predictions[i]], event2, predictions_relation_detection[i], confidence[i]))
                 else:
-                    human_readable_predictions.append((event1, relation_types[predictions[i]], event2))
+                    human_readable_predictions.append((event1, relation_types[predictions[i]], event2, confidence[i]))
     return human_readable_predictions
 
 patient_graphs = {}
@@ -319,12 +328,14 @@ def save_to_common_graph(predicted_relations, patient_id):
     patient_graphs[patient_id] = patient_graph
 
 def get_sentences_from_test_set_i2b2():
+    all_document_ids = []
     all_documents = []
     all_sentences = []
     all_relations = []
     i2b2df = read_i2b2(full_text=True, use_test_files=True, include_rows_without_absolute=True)
     documents = set(i2b2df["document_id"])
     for document in documents:
+        all_document_ids.append(document)
         relations = i2b2df[i2b2df["document_id"] == document].reset_index(drop=True)
         text = relations["text"][0]
         all_documents.append(text)
@@ -337,7 +348,7 @@ def get_sentences_from_test_set_i2b2():
             event2 = (relation["event2_start"], relation["event2_end"], relation["event2_text"])
             relations_in_document.append((event1, relation["class"], event2))
         all_relations.append(relations_in_document)
-    return all_documents, all_sentences, all_relations
+    return all_documents, all_sentences, all_relations, all_document_ids
 
 def overlap(event1, event2):
     start1, end1, text1 = event1
@@ -372,11 +383,12 @@ def most_similar_event_expanded(event_list :list[tuple[int, int, str]], event_ta
             return e
     return None
 
-def analyze_document(text, patient_id, args, event_pairs_of_interest=None, relation_detection_method="separate"):
-    document_id_hash = str(hash(text))
-    if os.path.isfile("pipeline_tmp_"+args.event_detector+"/" + document_id_hash + ".pt"):
+def analyze_document(text, patient_id, args, event_pairs_of_interest=None, relation_detection_method="separate", document_id=""):
+    if len(document_id) == 0:
+        document_id = str(hash(text))
+    if os.path.isfile("pipeline_tmp_"+args.event_detector + "_" + args.event_pairs + "/" + document_id + ".pt"):
         dataset = DFDataset()
-        dataset.load("pipeline_tmp_"+args.event_detector+"/" + document_id_hash + ".pt")
+        dataset.load("pipeline_tmp_"+args.event_detector + "_" + args.event_pairs + "/" + document_id + ".pt")
     else:
         if args.event_detector == "bert":
             events = extract_events(text)
@@ -402,10 +414,10 @@ def analyze_document(text, patient_id, args, event_pairs_of_interest=None, relat
         dataset = construct_dataset_with_graphs(text, dataframe, patient_id)
         for i in range(len(dataset.generated)):
             dataset.generated[i].gold_relations = (i < len(gold_event_pairs))
-        if not os.path.isdir("pipeline_tmp_"+args.event_detector):
-            os.mkdir("pipeline_tmp_"+args.event_detector)
-        dataset.save("pipeline_tmp_"+args.event_detector+"/" + document_id_hash + ".pt")
-    relations = predict_temporal_relations(dataset, relation_detection_method=relation_detection_method)
+        if not os.path.isdir("pipeline_tmp_"+args.event_detector + "_" + args.event_pairs):
+            os.mkdir("pipeline_tmp_"+args.event_detector + "_" + args.event_pairs)
+        dataset.save("pipeline_tmp_" + args.event_detector + "_" + args.event_pairs + "/" + document_id + ".pt")
+    relations = predict_temporal_relations(dataset, relation_detection_method=relation_detection_method, args=args)
     for i in range(len(dataset.generated)):
         relations[i] = tuple(list(relations[i]) + [1 if dataset.generated[i].gold_relations else 0])
     return relations
@@ -419,33 +431,33 @@ def get_event_pairs_of_interest(relations):
 def run_pipeline(args):
     relation_detection_method = "separate"
     if args.event_pairs == "gold_only":
-        f = open("pipeline_predictions_" + args.event_detector + "_gold_pairs.txt", "a")
+        f = open("pipeline_predictions_" + args.event_detector + "_" + args.relation_model + "_gold_pairs.txt", "a")
     else:
-        f = open("pipeline_predictions_" + args.event_detector + ".txt", "a")
-    documents, sentences, relations = get_sentences_from_test_set_i2b2()
+        f = open("pipeline_predictions_" + args.event_detector + "_" + args.relation_model + ".txt", "a")
+    documents, sentences, relations, document_ids = get_sentences_from_test_set_i2b2()
     patient_id = 0
     i = 0
     print (len(documents))
-    for document, sentences, true_relations in zip(documents, sentences, relations):
+    for document, sentences, true_relations, document_id in zip(documents, sentences, relations, document_ids):
         event_pairs = get_event_pairs_of_interest(true_relations)
-        predicted_relations = analyze_document(document, patient_id, args, event_pairs, relation_detection_method=relation_detection_method)
+        predicted_relations = analyze_document(document, patient_id, args, event_pairs, relation_detection_method=relation_detection_method, document_id=document_id)
         if relation_detection_method == "separate":
             predicted_relations = [
-                [[int(e1s), int(e1e), e1t], relation, [int(e2s), int(e2e), e2t], int(p), int(gold)]
-                for (e1s, e1e, e1t), relation, (e2s, e2e, e2t), p, gold in predicted_relations
+                [[int(e1s), int(e1e), e1t], relation, [int(e2s), int(e2e), e2t], int(p), int(gold), confidence]
+                for (e1s, e1e, e1t), relation, (e2s, e2e, e2t), p, confidence, gold in predicted_relations
             ]
         else:
             predicted_relations = [
-                [[int(e1s), int(e1e), e1t], relation, [int(e2s), int(e2e), e2t], int(gold)]
-                for (e1s, e1e, e1t), relation, (e2s, e2e, e2t), gold in predicted_relations
+                [[int(e1s), int(e1e), e1t], relation, [int(e2s), int(e2e), e2t], int(gold), confidence]
+                for (e1s, e1e, e1t), relation, (e2s, e2e, e2t), confidence, gold in predicted_relations
             ]
         print(predicted_relations)
         true_relations = [
             [[int(e1s), int(e1e), e1t], relation, [int(e2s), int(e2e), e2t]]
             for (e1s, e1e, e1t), relation, (e2s, e2e, e2t) in true_relations
         ]
-        print(true_relations)
-        f.write(json.dumps(predicted_relations) + "|" + json.dumps(true_relations) + "\n")
+        # print(true_relations)
+        f.write(json.dumps(predicted_relations) + "|" + json.dumps(true_relations) + "|" + document + "|" + document_id + "\n")
         f.flush()
         # save_to_common_graph(predicted_relations, patient_id)
         patient_id += 1
