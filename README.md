@@ -1,110 +1,189 @@
-# Python Project
+# Knowledge Graph-Enhanced Temporal Relation Extraction
+
+This repository contains the code for research on using external knowledge to support temporal relation extraction in medical documents. The project implements both a basic model and an end-to-end pipeline for extracting temporal relations from clinical text.
 
 ## Overview
 
-This project is a Python-based application developed with multiple third-party libraries for data manipulation, natural language processing, visualization, and more. It is designed to leverage the powerful Python ecosystem to perform tasks like working with data files, handling APIs, analyzing text, and creating ML models.
+The system combines information from text with information from knowledge graphs to produce accurate temporal relation predictions. The approach is particularly suited for medical documents where temporal ordering of events (e.g., symptoms, treatments, diagnoses) is crucial for understanding patient narratives.
 
-## Features
+### Key Features
 
-- Data manipulation using **pandas**, **NumPy**, and **openpyxl**.
-- Natural language processing with **spaCy**, **nltk**, and **Gensim**.
-- Machine learning capabilities using **scikit-learn** and **statsmodels**.
-- Visualization with **Matplotlib** and **Seaborn**.
-- Network and graph analysis with **NetworkX**.
-- Supported integrations with the AWS SDK (**boto3**) for managing cloud resources.
-- Build and analysis of mathematical models using **Sympy** and **Scipy**.
-- Web request handling with **requests**.
-- Dynamic templating using **Jinja2** for generating formatted content.
+- **Bimodal Learning**: Combines textual information with knowledge graph embeddings
+- **End-to-End Pipeline**: Performs event extraction, event pair generation, and temporal relation classification
+- **Knowledge Graph Integration**: Leverages external medical knowledge (PrimeKG) and LLM-generated knowledge
+- **Memory-Augmented Predictions**: Stores extracted temporal relations to improve future predictions
+- **Multiple Datasets**: Supports i2b2 and THYME temporal relation datasets
 
-## Requirements
+## Architecture
 
-This project has been developed using **Python 3.12.8**. Ensure your environment adheres to this version or newer.
+### Basic Model Components
 
-Installed Python packages include:
+1. **Text Encoder** (`models/text_encoder.py`): Encodes event mentions and their context using transformer-based models
+2. **Knowledge Graph Encoder** (`models/knowledge_graph_encoder.py`): Encodes relevant subgraphs from external knowledge sources
+3. **Bimodal Fusion** (`models/bimodal.py`): Combines text and graph representations for relation prediction
 
-- `boto3`
-- `click`
-- `gensim`
-- `ipython`
-- `Jinja2`
-- `lxml`
-- `matplotlib`
-- `networkx`
-- `nltk`
-- `numpy`
-- `openpyxl`
-- `pandas`
-- `pillow`
-- `pip`
-- `protobuf`
-- `pyparsing`
-- `pytz`
-- `requests`
-- `scikit-learn`
-- `scipy`
-- `seaborn`
-- `six`
-- `smmap`
-- `spacy`
-- `statsmodels`
-- `sympy`
-- `tornado`
-- `wrapt`
+### Pipeline Components
 
-To install the dependencies, you can run:
+The end-to-end pipeline (`pipeline/`) performs:
+1. **Event Extraction**: Identifies medical events in text using trained sequence tagging models
+2. **Event Pair Generation**: Creates candidate event pairs for temporal relation classification
+3. **Relation Extraction**: Uses the pretrained bimodal model to classify temporal relations
+4. **Memory Storage**: Stores extracted relations to support future predictions
 
-```bash
-pip install -r requirements.txt
+## Project Structure
+
+```
+.
+├── training/                          # Training scripts for all models
+│   ├── train_text_encoder.py         # Train text encoder
+│   ├── train_graph_encoder.py        # Train graph encoder
+│   ├── train_combined_relation_encoder.py  # Train combined model
+│   ├── train_event_extraction.py     # Train event extraction model
+│   └── train_and_evaluate_relation_extraction.py  # Full training pipeline
+├── pipeline/                          # End-to-end pipeline implementation
+│   ├── pipeline.py                    # Main pipeline code
+│   └── pipeline_evaluation.py        # Pipeline evaluation utilities
+├── models/                            # Model architectures
+│   ├── text_encoder.py               # Text encoding models
+│   ├── knowledge_graph_encoder.py    # Graph encoding models
+│   ├── bimodal.py                    # Multimodal fusion model
+│   └── baselines/                    # Baseline implementations
+├── custom_datasets/                   # Data loading and preprocessing
+│   ├── i2b2dataLoader.py             # i2b2 dataset loader
+│   ├── thyme_loader.py               # THYME dataset loader
+│   ├── knowledge_graph_dataset.py    # KG dataset construction
+│   └── event_extraction_dataset.py   # Event extraction data
+├── graph_building/                    # Knowledge graph construction
+├── evaluation/                        # Evaluation scripts
+├── notebooks/                         # Analysis and experimentation notebooks
+│   ├── Event extraction evaluation.ipynb
+│   ├── Error analysis.ipynb
+│   ├── End-to-end ablation study.ipynb
+│   └── Manual end-to-end evaluation.ipynb
+├── batch_scripts/                     # SLURM batch scripts for HPC
+├── data/                             # Dataset storage (not included)
+│   ├── i2b2/                         # i2b2 temporal relation corpus
+│   ├── thyme/                        # THYME corpus
+│   └── primekg.tab                   # PrimeKG knowledge graph
+└── best-models/                      # Saved model checkpoints
 ```
 
 ## Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/your-repository.git
-   cd your-repository
-   ```
+### Requirements
 
-2. Set up a virtual environment (optional but recommended):
-   ```bash
-   python -m venv venv
-   source venv/bin/activate   # macOS/Linux
-   venv\Scripts\activate      # Windows
-   ```
+- Python 3.8+
+- PyTorch 2.0+
+- PyTorch Geometric
+- Transformers (HuggingFace)
+- Flair NLP
+- Additional dependencies in `wandb/*/files/requirements.txt`
 
-3. Install the requirements:
-   ```bash
-   pip install -r requirements.txt
-   ```
+### Setup
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd KG-temporal-relation-extraction
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies (adjust based on your requirements.txt)
+pip install torch torchvision torchaudio
+pip install torch-geometric
+pip install transformers flair
+pip install wandb pandas numpy scikit-learn
+```
 
 ## Usage
 
-After cloning the repository and setting up the environment, use the following command to execute the script(s):
+### Training Models
+
+#### 1. Train Text Encoder
+```bash
+python -m training.train_text_encoder
+```
+
+#### 2. Train Graph Encoder
+```bash
+python -m training.train_graph_encoder
+```
+
+#### 3. Train Combined Relation Extraction Model
+```bash
+python -m training.train_combined_relation_encoder
+```
+
+#### 4. Train Event Extraction Model
+```bash
+python -m training.train_event_extraction
+```
+
+### Running the End-to-End Pipeline
+
+```python
+from pipeline import pipeline
+
+# Load your clinical documents
+# Run the pipeline for event extraction and relation classification
+results = pipeline.run()
+```
+
+### Evaluation
+
+Evaluation scripts are available in the `evaluation/` folder:
 
 ```bash
-python main.py
+python evaluation/evaluate_relation_prediction.py
 ```
 
-### Example Scenarios
+### Using Notebooks
 
-- **Data Analysis**: Import your dataset files (e.g., CSV, Excel) and process them using `pandas` or `numpy` for insights generation.
-- **Text Processing**: Process textual data with tools like `spaCy` or `nltk` for sentiment analysis, language detection, and tokenization.
-- **Machine Learning**: Build and train machine learning models using `scikit-learn` and evaluate them with `statsmodels`.
-- **Visualization**: Use `matplotlib` or `seaborn` libraries to create detailed and custom visualizations.
+The `notebooks/` folder contains Jupyter notebooks for various analyses:
 
-## Project Structure
-```aiignore
-project/
- │
- ├── README.md # Project documentation
- ├── requirements.txt # Dependencies for the project
- ├── main.py # Main script entry point
- ├── utils/ # Helper utility files
- ├── data/ # Stores datasets 
- ├── notebooks/ # Jupyter Notebooks for experimentation
- └── tests/ # Unit tests
+- **Event extraction evaluation.ipynb**: Evaluate event extraction performance
+- **Error analysis.ipynb**: Analyze model errors and failure cases
+- **End-to-end ablation study.ipynb**: Ablation studies on pipeline components
+- **Manual end-to-end evaluation.ipynb**: Manual evaluation of pipeline outputs
+
+## Datasets
+
+This project supports two main temporal relation datasets:
+
+1. **i2b2 2012 Temporal Relations Challenge**: Clinical notes with temporal relation annotations
+2. **THYME Corpus**: Cancer pathology reports with rich temporal annotations
+
+The knowledge graph component uses:
+- **PrimeKG**: A precision medicine knowledge graph
+- **LLM-generated knowledge**: On-demand knowledge extraction using language models
+
+### Data Preparation
+
+Place your datasets in the `data/` directory:
+```
+data/
+├── i2b2/           # i2b2 XML files
+├── i2b2-test/      # i2b2 test set
+└── primekg.tab     # PrimeKG file
 ```
 
-## Contact
+## Configuration
 
-For inquiries or support, feel free to reach out via email at **your.email@example.com** or open an issue in the repository.
+Key configuration parameters can be set in `custom_datasets/common.py` through the `Configuration` class:
+
+- `add_inverse_relations_to_graph`: Include inverse relations in KG
+- `use_realistic_graph`: Use realistic graph construction (limited to available knowledge)
+- `remove_target_relation`: Remove gold relations from graph during training
+
+## Acknowledgments
+
+This research uses:
+- The i2b2 2012 Temporal Relations corpus
+- The THYME corpus
+- PrimeKG knowledge graph
+- HuggingFace Transformers
+- PyTorch Geometric
+- Flair NLP
+

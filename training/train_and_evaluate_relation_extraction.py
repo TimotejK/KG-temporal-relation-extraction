@@ -1,7 +1,7 @@
 import gc
 import os.path
 
-from pipeline import pipeline_evaluation
+# from pipeline import pipeline_evaluation
 
 os.environ["WANDB_PROJECT"] = "relation-extraction-i2b2"
 from collections import Counter
